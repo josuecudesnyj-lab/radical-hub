@@ -3,117 +3,80 @@
 -- ============================================================
 local HttpService = game:GetService("HttpService")
 
--- Lista de admins (UserIds que SI pueden usar antes de tiempo)
 local ADMIN_IDS = {
-    9414867953,   -- RAMONvREYvDELvCAOsYT (Dueño)
-    -- Agrega mas UserIds aqui separados por coma si quieres
+    9414867953,
 }
 
--- Fecha real de desbloqueo: 23 de septiembre del año actual a las 14:00 SV
 local LOCK_YEAR = tonumber(os.date("%Y"))
 local LOCK_MONTH = 9
 local LOCK_DAY = 23
 
--- ============================================================
--- Hora REAL desde internet (no la del celular)
--- ============================================================
 local function getRealUnixTime()
     local urls = {
         "https://worldtimeapi.org/api/timezone/America/El_Salvador",
         "https://timeapi.io/api/Time/current/zone?timeZone=America/El_Salvador",
     }
-
     for _, url in ipairs(urls) do
-        local ok, response = pcall(function()
-            return game:HttpGet(url)
-        end)
+        local ok, response = pcall(function() return game:HttpGet(url) end)
         if ok and response and response ~= "" then
             local unix = response:match('"unixtime"%s*:%s*(%d+)')
             if not unix then
                 unix = response:match('"timestamp"%s*:%s*"([^"]+)"')
             end
-            if unix then
-                return tonumber(unix)
-            end
+            if unix then return tonumber(unix) end
         end
     end
-
-    -- Fallback: hora local (por si falla internet)
     return os.time()
 end
 
--- ============================================================
--- Calculo timestamp del 23 sept 14:00 SV (= 20:00 UTC)
--- ============================================================
 local function buildLockUnix()
     local year = LOCK_YEAR
     local daysPerMonth = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
     local isLeap = (year % 4 == 0 and year % 100 ~= 0) or (year % 400 == 0)
     if isLeap then daysPerMonth[2] = 29 end
-
     local days = 0
-    for m = 1, (LOCK_MONTH - 1) do
-        days = days + daysPerMonth[m]
-    end
+    for m = 1, (LOCK_MONTH - 1) do days = days + daysPerMonth[m] end
     days = days + LOCK_DAY - 1
-
     local years = year - 1970
     local leapDays = 0
     for y = 1970, year - 1 do
-        if (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0) then
-            leapDays = leapDays + 1
-        end
+        if (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0) then leapDays = leapDays + 1 end
     end
     days = days + years * 365 + leapDays
-
-    -- 20:00 UTC = 14:00 SV
     return (days * 86400) + (20 * 3600)
 end
 
 local LOCK_UNIX = buildLockUnix()
 
--- ============================================================
--- Verificacion
--- ============================================================
 local function isAdmin()
     for _, id in ipairs(ADMIN_IDS) do
-        if game.Players.LocalPlayer.UserId == id then
-            return true
-        end
+        if game.Players.LocalPlayer.UserId == id then return true end
     end
     return false
 end
 
 local function isUnlocked()
     if isAdmin() then return true end
-    local realTime = getRealUnixTime()
-    return realTime >= LOCK_UNIX
+    return getRealUnixTime() >= LOCK_UNIX
 end
 
--- ============================================================
--- Bloqueo
--- ============================================================
 if not isUnlocked() then
     local Players = game:GetService("Players")
     local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
-
     local blockGui = Instance.new("ScreenGui")
     blockGui.Name = "RadicalHub_Locked"
     blockGui.ResetOnSpawn = false
     blockGui.IgnoreGuiInset = true
     blockGui.Parent = playerGui
-
     local frame = Instance.new("Frame", blockGui)
     frame.Size = UDim2.new(0, 400, 0, 200)
     frame.Position = UDim2.new(0.5, -200, 0.5, -100)
     frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
     frame.BorderSizePixel = 0
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
     local stroke = Instance.new("UIStroke", frame)
     stroke.Color = Color3.fromRGB(255, 60, 60)
     stroke.Thickness = 2
-
     local title = Instance.new("TextLabel", frame)
     title.Size = UDim2.new(1, -20, 0, 30)
     title.Position = UDim2.new(0, 10, 0, 15)
@@ -122,7 +85,6 @@ if not isUnlocked() then
     title.TextColor3 = Color3.fromRGB(255, 80, 80)
     title.Font = Enum.Font.GothamBold
     title.TextSize = 16
-
     local msg = Instance.new("TextLabel", frame)
     msg.Size = UDim2.new(1, -20, 0, 100)
     msg.Position = UDim2.new(0, 10, 0, 55)
@@ -132,7 +94,6 @@ if not isUnlocked() then
     msg.Font = Enum.Font.Gotham
     msg.TextSize = 12
     msg.TextWrapped = true
-
     local closeBtn = Instance.new("TextButton", frame)
     closeBtn.Size = UDim2.new(1, -20, 0, 30)
     closeBtn.Position = UDim2.new(0, 10, 1, -42)
@@ -143,12 +104,8 @@ if not isUnlocked() then
     closeBtn.TextSize = 11
     closeBtn.BorderSizePixel = 0
     Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
-
-    closeBtn.MouseButton1Click:Connect(function()
-        blockGui:Destroy()
-    end)
-
-    return  -- 🔥 Corta el script aquí
+    closeBtn.MouseButton1Click:Connect(function() blockGui:Destroy() end)
+    return
 end
 
 print("RADICAL HUB: desbloqueado, cargando...")
@@ -183,6 +140,8 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 local camera = workspace.CurrentCamera
 
 local UI = _G.RADICAL_UI
@@ -228,13 +187,18 @@ local maxRange = 2500
 local SilentAimPlayersEnabled = false
 local SilentAimNPCsEnabled = false
 
+local FastFlag = {
+    Enabled = false,
+}
+
+local ffOriginalTextures = {}
+
+local LAG_KEYWORDS = {"draco", "control", "room"}
+
 local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
 local commE = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommE")
 local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
 
--- ============================================================
--- HELPERS GENERALES
--- ============================================================
 local function startAntiAFK()
     task.spawn(function()
         while HUB_CONFIG.AntiAFK do
@@ -353,9 +317,104 @@ local function removeFakeHeadless()
     end
 end
 
--- ============================================================
--- SORU HELPERS
--- ============================================================
+local function isLagEffect(obj)
+    if not obj then return false end
+    local name = string.lower(obj.Name)
+    for _, keyword in ipairs(LAG_KEYWORDS) do
+        if string.find(name, keyword, 1, true) then return true end
+    end
+    return false
+end
+
+local function cleanCharacter(char)
+    if not char then return end
+    for _, desc in pairs(char:GetDescendants()) do
+        if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Beam") or desc:IsA("Highlight") then
+            if isLagEffect(desc) or isLagEffect(desc.Parent) then
+                pcall(function() desc.Enabled = false end)
+            end
+        end
+    end
+end
+
+local function reduceAllTextures()
+    ffOriginalTextures = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            pcall(function()
+                if obj.Material ~= Enum.Material.SmoothPlastic and obj.Material ~= Enum.Material.Neon then
+                    ffOriginalTextures[obj] = obj.Material
+                    obj.Material = Enum.Material.SmoothPlastic
+                end
+                obj.Reflectance = 0
+            end)
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            pcall(function()
+                ffOriginalTextures[obj] = obj.Transparency
+                obj.Transparency = math.min(0.35, obj.Transparency + 0.35)
+            end)
+        elseif obj:IsA("SpecialMesh") or obj:IsA("MeshPart") then
+            pcall(function()
+                if obj:IsA("SpecialMesh") then
+                    ffOriginalTextures[obj] = obj.TextureId
+                    obj.TextureId = ""
+                end
+            end)
+        end
+    end
+    -- Bajar calidad general del render
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level04
+    end)
+    Lighting.GlobalShadows = false
+end
+
+local function restoreTextures()
+    for obj, data in pairs(ffOriginalTextures) do
+        if obj and obj.Parent then
+            pcall(function()
+                if obj:IsA("BasePart") then
+                    obj.Material = data
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = data
+                elseif obj:IsA("SpecialMesh") then
+                    obj.TextureId = data
+                end
+            end)
+        end
+    end
+    ffOriginalTextures = {}
+    pcall(function()
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+    end)
+    Lighting.GlobalShadows = true
+end
+
+local function applyFastFlag()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character then cleanCharacter(p.Character) end
+    end
+    if player.Character then cleanCharacter(player.Character) end
+    for _, desc in pairs(workspace:GetDescendants()) do
+        if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Beam") then
+            if isLagEffect(desc) or isLagEffect(desc.Parent) then
+                pcall(function() desc.Enabled = false end)
+            end
+        end
+    end
+end
+
+task.spawn(function()
+    while task.wait(2) do
+        if FastFlag.Enabled then pcall(applyFastFlag) end
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    task.wait(0.5)
+    if FastFlag.Enabled then cleanCharacter(char) end
+end)
+
 local function getSoruClosestPlayer(overrideMaxDist)
     local myHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not myHRP then return nil end
@@ -530,9 +589,6 @@ end
 player.CharacterAdded:Connect(monitorCharPortal)
 if player.Character then monitorCharPortal(player.Character) end
 
--- ============================================================
--- COMBATE: SILENT AIM
--- ============================================================
 local function IsSilentAimAlly(p)
     local main = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("Main")
     local frame = main and main:FindFirstChild("Allies") and main.Allies:FindFirstChild("Container") and main.Allies.Container:FindFirstChild("Allies") and main.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
@@ -615,9 +671,6 @@ RunService.RenderStepped:Connect(function()
     if _G_SilentAimSkill then currentSilentAimTarget = GetClosestTarget() else currentSilentAimTarget = nil end
 end)
 
--- ============================================================
--- COMBATE: AUTO M1 (GUN)
--- ============================================================
 local DragonModules = ReplicatedStorage:WaitForChild("Modules")
 local DragonNet = DragonModules:WaitForChild("Net")
 local ShootGunEvent = DragonNet:WaitForChild("RE/ShootGunEvent")
@@ -748,9 +801,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- COMBATE: FAST ATTACK
--- ============================================================
 task.spawn(function()
     while task.wait(0.03) do
         if _G_GhostAttack then
@@ -809,18 +859,12 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- COMBATE: AUTO KEN
--- ============================================================
 task.spawn(function()
     while task.wait(0.5) do
         if _G_AutoKen then pcall(function() commE:FireServer("Ken", true) end) end
     end
 end)
 
--- ============================================================
--- JUMP + SANGUINE MANUAL
--- ============================================================
 local function executeJump()
     local char = player.Character
     if not char then return end
@@ -924,9 +968,6 @@ local function DestroySanguineFloatingButton()
     for _, gui in pairs(playerGui:GetChildren()) do if gui.Name == "SanguineZ_Floating" then gui:Destroy() end end
 end
 
--- ============================================================
--- BOOSTS
--- ============================================================
 local BoostConfig = {
     SanguineAuto = { Name = "Sanguine Auto", Color = Color3.fromRGB(180, 60, 255), Enabled = false, Visible = false, Power = 500, Duration = 0.30, MinCharge = 1.0, AnimIDs = {"14418367908"}, AnimName = "GhoulZCharge", SubWindow = nil, FloatGui = nil, FloatY = 0.65 },
     DTalonAuto = { Name = "DTalon Auto", Color = Color3.fromRGB(255, 100, 50), Enabled = false, Visible = false, Power = 500, Duration = 0.30, MinCharge = 1.0, AnimIDs = {"18839089313"}, AnimName = "DTalon_ZCharge", SubWindow = nil, FloatGui = nil, FloatY = 0.75 },
@@ -1156,9 +1197,6 @@ local function createBoostSubWindow(key, cfg, parentGui)
     cfg.SubWindow = Sub
 end
 
--- ============================================================
--- TOGGLES + SCROLL HELPER
--- ============================================================
 local toggleRefreshList = {}
 
 local function ensureScroll(page)
@@ -1302,9 +1340,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- SILENT AIM / M1 FLOAT BUTTONS (verde = ON, gris = OFF)
--- ============================================================
 local FLOAT_ON_COLOR = Color3.fromRGB(0, 200, 80)
 local FLOAT_OFF_COLOR = Color3.fromRGB(60, 60, 65)
 local FLOAT_ON_STROKE = Color3.fromRGB(0, 255, 100)
@@ -1335,7 +1370,6 @@ local function createStateFloat(guiName, btnName, text, pos, getState, toggleSta
     local stroke = Instance.new("UIStroke", btn)
     stroke.Thickness = 1.5
     stroke.Parent = btn
-
     local function updateVisual()
         if getState() then
             btn.BackgroundColor3 = FLOAT_ON_COLOR
@@ -1345,7 +1379,6 @@ local function createStateFloat(guiName, btnName, text, pos, getState, toggleSta
             stroke.Color = FLOAT_OFF_STROKE
         end
     end
-
     local debounce = false
     local function onClick()
         if debounce then return end
@@ -1355,11 +1388,9 @@ local function createStateFloat(guiName, btnName, text, pos, getState, toggleSta
         task.wait(0.15)
         debounce = false
     end
-
     btn.MouseButton1Click:Connect(onClick)
     btn.TouchTap:Connect(onClick)
     updateVisual()
-
     return fGui, btn, updateVisual
 end
 
@@ -1396,7 +1427,6 @@ local function DestroyDragonM1FloatingButton()
     dragonM1FloatRefresh = nil
 end
 
--- Refresca el estado visual de los botones flotantes cada 0.3s
 task.spawn(function()
     while task.wait(0.3) do
         if silentAimFloatRefresh then pcall(silentAimFloatRefresh) end
@@ -1404,9 +1434,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- HOME
--- ============================================================
 local homePage = UI.Pages["Home"]
 if homePage then
     local l1 = Instance.new("TextLabel", homePage)
@@ -1425,9 +1452,6 @@ if homePage then
     l2.TextSize = 10
 end
 
--- ============================================================
--- COMBAT
--- ============================================================
 local combatePage = UI.Pages["Combat"] or UI.Pages["Combate"]
 if combatePage then
     local combateScroll = ensureScroll(combatePage)
@@ -1459,9 +1483,6 @@ if combatePage then
     createToggle(combateScroll, "Auto Ken", function() return _G_AutoKen end, function(v) _G_AutoKen = v end, 158)
 end
 
--- ============================================================
--- MAIN
--- ============================================================
 local mainPage = UI.Pages["Main"]
 if mainPage then
     local mainScroll = ensureScroll(mainPage)
@@ -1637,9 +1658,6 @@ if mainPage then
     end)
 end
 
--- ============================================================
--- GLITCH
--- ============================================================
 local glitchPage = UI.Pages["Glitch"]
 if glitchPage then
     local glitchScroll = ensureScroll(glitchPage)
@@ -1662,9 +1680,6 @@ if glitchPage then
     end, 90)
 end
 
--- ============================================================
--- APPEARANCE
--- ============================================================
 local appPage = UI.Pages["Appearance"]
 if appPage then
     local appScroll = ensureScroll(appPage)
@@ -1746,9 +1761,6 @@ if appPage then
     end
 end
 
--- ============================================================
--- SORU
--- ============================================================
 local soruPage = UI.Pages["Soru"]
 if soruPage then
     local soruScroll = ensureScroll(soruPage)
@@ -1827,57 +1839,97 @@ if soruPage then
     end)
 end
 
--- ============================================================
--- SETTING
--- ============================================================
 local settingPage = UI.Pages["Setting"]
 if settingPage then
     local settingScroll = ensureScroll(settingPage)
-    settingScroll.CanvasSize = UDim2.new(0, 0, 0, 200)
+    settingScroll.CanvasSize = UDim2.new(0, 0, 0, 400)
 
     createToggle(settingScroll, "Anti-AFK", function() return HUB_CONFIG.AntiAFK end, function(v)
         HUB_CONFIG.AntiAFK = v
         if v then startAntiAFK() else stopAntiAFK() end
     end, 0)
+
+    local sepSet1 = Instance.new("Frame", settingScroll)
+    sepSet1.Size = UDim2.new(1, 0, 0, 1)
+    sepSet1.Position = UDim2.new(0, 0, 0, 32)
+    sepSet1.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sepSet1.BackgroundTransparency = 0.7
+    sepSet1.BorderSizePixel = 0
+    sepSet1.ZIndex = 3
+
+    local ffTitle = Instance.new("TextLabel", settingScroll)
+    ffTitle.Size = UDim2.new(1, 0, 0, 16)
+    ffTitle.Position = UDim2.new(0, 0, 0, 38)
+    ffTitle.BackgroundTransparency = 1
+    ffTitle.Text = "FAST FLAG (Anti-Lag)"
+    ffTitle.TextColor3 = T.Admin
+    ffTitle.Font = Enum.Font.GothamBold
+    ffTitle.TextSize = 9
+    ffTitle.ZIndex = 3
+
+    createToggle(settingScroll, "Fast Flag", function() return FastFlag.Enabled end, function(v)
+        FastFlag.Enabled = v
+        if v then
+            pcall(applyFastFlag)
+            pcall(reduceAllTextures)
+        else
+            pcall(restoreTextures)
+        end
+    end, 58)
+
+    local sepSet2 = Instance.new("Frame", settingScroll)
+    sepSet2.Size = UDim2.new(1, 0, 0, 1)
+    sepSet2.Position = UDim2.new(0, 0, 0, 90)
+    sepSet2.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sepSet2.BackgroundTransparency = 0.7
+    sepSet2.BorderSizePixel = 0
+    sepSet2.ZIndex = 3
+
+    local cfgTitle = Instance.new("TextLabel", settingScroll)
+    cfgTitle.Size = UDim2.new(1, 0, 0, 16)
+    cfgTitle.Position = UDim2.new(0, 0, 0, 96)
+    cfgTitle.BackgroundTransparency = 1
+    cfgTitle.Text = "CONFIGURACION"
+    cfgTitle.TextColor3 = T.TextGray
+    cfgTitle.Font = Enum.Font.GothamBold
+    cfgTitle.TextSize = 9
+    cfgTitle.ZIndex = 3
+
     local saveBtn = Instance.new("TextButton", settingScroll)
-    saveBtn.Size = UDim2.new(1, -8, 0, 30)
-    saveBtn.Position = UDim2.new(0, 4, 0, 40)
-    saveBtn.BackgroundColor3 = T.ButtonIdle
-    saveBtn.Text = "Guardar Configuracion"
-    saveBtn.TextColor3 = T.TextWhite
+    saveBtn.Size = UDim2.new(1, -8, 0, 32)
+    saveBtn.Position = UDim2.new(0, 4, 0, 118)
+    saveBtn.BackgroundColor3 = Color3.fromRGB(0, 130, 200)
+    saveBtn.Text = "💾 Guardar Config"
+    saveBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     saveBtn.Font = Enum.Font.GothamBold
     saveBtn.TextSize = 10
     saveBtn.BorderSizePixel = 0
     saveBtn.ZIndex = 3
     Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0, 6)
-    saveBtn.MouseButton1Click:Connect(function()
-        saveBtn.Text = "Guardado!"
-        saveBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 60)
-        task.wait(1.5)
-        saveBtn.Text = "Guardar Configuracion"
-        saveBtn.BackgroundColor3 = T.ButtonIdle
-    end)
+
+    local loadBtn = Instance.new("TextButton", settingScroll)
+    loadBtn.Size = UDim2.new(1, -8, 0, 32)
+    loadBtn.Position = UDim2.new(0, 4, 0, 156)
+    loadBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 200)
+    loadBtn.Text = "📂 Cargar Config"
+    loadBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    loadBtn.Font = Enum.Font.GothamBold
+    loadBtn.TextSize = 10
+    loadBtn.BorderSizePixel = 0
+    loadBtn.ZIndex = 3
+    Instance.new("UICorner", loadBtn).CornerRadius = UDim.new(0, 6)
+
     local resetBtn = Instance.new("TextButton", settingScroll)
-    resetBtn.Size = UDim2.new(1, -8, 0, 30)
-    resetBtn.Position = UDim2.new(0, 4, 0, 76)
-    resetBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
-    resetBtn.Text = "Reset Configuracion"
-    resetBtn.TextColor3 = T.TextWhite
+    resetBtn.Size = UDim2.new(1, -8, 0, 32)
+    resetBtn.Position = UDim2.new(0, 4, 0, 194)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+    resetBtn.Text = "🗑️ Reset Config"
+    resetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     resetBtn.Font = Enum.Font.GothamBold
     resetBtn.TextSize = 10
     resetBtn.BorderSizePixel = 0
     resetBtn.ZIndex = 3
     Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0, 6)
-    resetBtn.MouseButton1Click:Connect(function()
-        HUB_CONFIG.WalkSpeed = 16
-        HUB_CONFIG.WalkSpeedEnabled = false
-        HUB_CONFIG.InfiniteJump = false
-        HUB_CONFIG.DashEnabled = false
-        HUB_CONFIG.DashDistance = 1
-        resetBtn.Text = "Reseteado!"
-        resetBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 60)
-        task.wait(1.5)
-        resetBtn.Text = "Reset Configuracion"
-        resetBtn.BackgroundColor3 = Color3.fromRGB(80, 20, 20)
-    end)
 end
+
+print("RADICAL HUB: Cargado completo.")
