@@ -1,3 +1,157 @@
+-- ============================================================
+-- SEGURIDAD ANTI ADELANTO DE HORA (Solo para admins)
+-- ============================================================
+local HttpService = game:GetService("HttpService")
+
+-- Lista de admins (UserIds que SI pueden usar antes de tiempo)
+local ADMIN_IDS = {
+    9414867953,   -- RAMONvREYvDELvCAOsYT (Dueño)
+    -- Agrega mas UserIds aqui separados por coma si quieres
+}
+
+-- Fecha real de desbloqueo: 23 de septiembre del año actual a las 14:00 SV
+local LOCK_YEAR = tonumber(os.date("%Y"))
+local LOCK_MONTH = 9
+local LOCK_DAY = 23
+
+-- ============================================================
+-- Hora REAL desde internet (no la del celular)
+-- ============================================================
+local function getRealUnixTime()
+    local urls = {
+        "https://worldtimeapi.org/api/timezone/America/El_Salvador",
+        "https://timeapi.io/api/Time/current/zone?timeZone=America/El_Salvador",
+    }
+
+    for _, url in ipairs(urls) do
+        local ok, response = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if ok and response and response ~= "" then
+            local unix = response:match('"unixtime"%s*:%s*(%d+)')
+            if not unix then
+                unix = response:match('"timestamp"%s*:%s*"([^"]+)"')
+            end
+            if unix then
+                return tonumber(unix)
+            end
+        end
+    end
+
+    -- Fallback: hora local (por si falla internet)
+    return os.time()
+end
+
+-- ============================================================
+-- Calculo timestamp del 23 sept 14:00 SV (= 20:00 UTC)
+-- ============================================================
+local function buildLockUnix()
+    local year = LOCK_YEAR
+    local daysPerMonth = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+    local isLeap = (year % 4 == 0 and year % 100 ~= 0) or (year % 400 == 0)
+    if isLeap then daysPerMonth[2] = 29 end
+
+    local days = 0
+    for m = 1, (LOCK_MONTH - 1) do
+        days = days + daysPerMonth[m]
+    end
+    days = days + LOCK_DAY - 1
+
+    local years = year - 1970
+    local leapDays = 0
+    for y = 1970, year - 1 do
+        if (y % 4 == 0 and y % 100 ~= 0) or (y % 400 == 0) then
+            leapDays = leapDays + 1
+        end
+    end
+    days = days + years * 365 + leapDays
+
+    -- 20:00 UTC = 14:00 SV
+    return (days * 86400) + (20 * 3600)
+end
+
+local LOCK_UNIX = buildLockUnix()
+
+-- ============================================================
+-- Verificacion
+-- ============================================================
+local function isAdmin()
+    for _, id in ipairs(ADMIN_IDS) do
+        if game.Players.LocalPlayer.UserId == id then
+            return true
+        end
+    end
+    return false
+end
+
+local function isUnlocked()
+    if isAdmin() then return true end
+    local realTime = getRealUnixTime()
+    return realTime >= LOCK_UNIX
+end
+
+-- ============================================================
+-- Bloqueo
+-- ============================================================
+if not isUnlocked() then
+    local Players = game:GetService("Players")
+    local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+    local blockGui = Instance.new("ScreenGui")
+    blockGui.Name = "RadicalHub_Locked"
+    blockGui.ResetOnSpawn = false
+    blockGui.IgnoreGuiInset = true
+    blockGui.Parent = playerGui
+
+    local frame = Instance.new("Frame", blockGui)
+    frame.Size = UDim2.new(0, 400, 0, 200)
+    frame.Position = UDim2.new(0.5, -200, 0.5, -100)
+    frame.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+    frame.BorderSizePixel = 0
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.fromRGB(255, 60, 60)
+    stroke.Thickness = 2
+
+    local title = Instance.new("TextLabel", frame)
+    title.Size = UDim2.new(1, -20, 0, 30)
+    title.Position = UDim2.new(0, 10, 0, 15)
+    title.BackgroundTransparency = 1
+    title.Text = "🔒 RADICAL HUB BLOQUEADO"
+    title.TextColor3 = Color3.fromRGB(255, 80, 80)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 16
+
+    local msg = Instance.new("TextLabel", frame)
+    msg.Size = UDim2.new(1, -20, 0, 100)
+    msg.Position = UDim2.new(0, 10, 0, 55)
+    msg.BackgroundTransparency = 1
+    msg.Text = "Este script aún no está disponible.\nDisponible: 23 de Septiembre a las 2:00 PM SV.\n\nSi adelantaste la hora del celular,\nno funcionará igual. 😉"
+    msg.TextColor3 = Color3.fromRGB(220, 220, 220)
+    msg.Font = Enum.Font.Gotham
+    msg.TextSize = 12
+    msg.TextWrapped = true
+
+    local closeBtn = Instance.new("TextButton", frame)
+    closeBtn.Size = UDim2.new(1, -20, 0, 30)
+    closeBtn.Position = UDim2.new(0, 10, 1, -42)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    closeBtn.Text = "CERRAR"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 11
+    closeBtn.BorderSizePixel = 0
+    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+
+    closeBtn.MouseButton1Click:Connect(function()
+        blockGui:Destroy()
+    end)
+
+    return  -- 🔥 Corta el script aquí
+end
+
+print("RADICAL HUB: desbloqueado, cargando...")
 local CORE_URL = "https://gist.githubusercontent.com/josuecudesnyj-lab/2c4f3a400c63b6ded21d29d5df0a9b86/raw/e1f0e21e37ded4c0e5c166773ac63abcebe8d64e/core.lua"
 
 local ok, code = pcall(function() return game:HttpGet(CORE_URL) end)
