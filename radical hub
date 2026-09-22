@@ -191,9 +191,28 @@ local FastFlag = {
     Enabled = false,
 }
 
-local ffOriginalTextures = {}
+local CamLock = {
+    PlayerEnabled = false,
+    NpcEnabled = false,
+    TargetPlayer = "Nearest",
+    LockedPlayer = nil,
+    LockedNpc = nil,
+    Smoothness = 0.4,
+}
 
-local LAG_KEYWORDS = {"draco", "control", "room"}
+local ESP = {
+    Enabled = false,
+    ShowName = true,
+    ShowLevel = true,
+    ShowBounty = true,
+    ShowFruit = true,
+    ShowDistance = true,
+    ShowHP = true,
+    ShowHighlight = false,
+    ShowWarning = true,
+    ShowPvPStatus = true,
+    TextSize = 12,
+}
 
 local commF = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
 local commE = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommE")
@@ -317,6 +336,8 @@ local function removeFakeHeadless()
     end
 end
 
+local LAG_KEYWORDS = {"draco", "control", "room"}
+
 local function isLagEffect(obj)
     if not obj then return false end
     local name = string.lower(obj.Name)
@@ -326,7 +347,7 @@ local function isLagEffect(obj)
     return false
 end
 
-local function cleanCharacter(char)
+local function cleanCharacterFastFlag(char)
     if not char then return end
     for _, desc in pairs(char:GetDescendants()) do
         if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Beam") or desc:IsA("Highlight") then
@@ -336,6 +357,8 @@ local function cleanCharacter(char)
         end
     end
 end
+
+local ffOriginalTextures = {}
 
 local function reduceAllTextures()
     ffOriginalTextures = {}
@@ -353,20 +376,13 @@ local function reduceAllTextures()
                 ffOriginalTextures[obj] = obj.Transparency
                 obj.Transparency = math.min(0.35, obj.Transparency + 0.35)
             end)
-        elseif obj:IsA("SpecialMesh") or obj:IsA("MeshPart") then
+        elseif obj:IsA("SpecialMesh") then
             pcall(function()
-                if obj:IsA("SpecialMesh") then
-                    ffOriginalTextures[obj] = obj.TextureId
-                    obj.TextureId = ""
-                end
+                ffOriginalTextures[obj] = obj.TextureId
+                obj.TextureId = ""
             end)
         end
     end
-    -- Bajar calidad general del render
-    pcall(function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Level04
-    end)
-    Lighting.GlobalShadows = false
 end
 
 local function restoreTextures()
@@ -384,17 +400,13 @@ local function restoreTextures()
         end
     end
     ffOriginalTextures = {}
-    pcall(function()
-        settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-    end)
-    Lighting.GlobalShadows = true
 end
 
 local function applyFastFlag()
     for _, p in ipairs(Players:GetPlayers()) do
-        if p.Character then cleanCharacter(p.Character) end
+        if p.Character then cleanCharacterFastFlag(p.Character) end
     end
-    if player.Character then cleanCharacter(player.Character) end
+    if player.Character then cleanCharacterFastFlag(player.Character) end
     for _, desc in pairs(workspace:GetDescendants()) do
         if desc:IsA("ParticleEmitter") or desc:IsA("Trail") or desc:IsA("Beam") then
             if isLagEffect(desc) or isLagEffect(desc.Parent) then
@@ -412,9 +424,303 @@ end)
 
 player.CharacterAdded:Connect(function(char)
     task.wait(0.5)
-    if FastFlag.Enabled then cleanCharacter(char) end
+    if FastFlag.Enabled then cleanCharacterFastFlag(char) end
 end)
 
+-- ============================================================
+-- CAM LOCK HELPERS
+-- ============================================================
+local function getClosestPlayerForLock()
+    local myHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil end
+    if CamLock.TargetPlayer ~= "Nearest" and CamLock.TargetPlayer ~= nil then
+        local targetP = Players:FindFirstChild(CamLock.TargetPlayer)
+        if targetP and targetP ~= player and targetP.Character then
+            local hum = targetP.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then return targetP.Character end
+        end
+    end
+    local closest, closestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local dist = (p.Character.HumanoidRootPart.Position - myHRP.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = p.Character
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function getClosestNpcForLock()
+    local myHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return nil end
+    local container = workspace:FindFirstChild("Enemies") or workspace
+    local closest, closestDist = nil, math.huge
+    for _, npc in pairs(container:GetChildren()) do
+        if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") and not Players:GetPlayerFromCharacter(npc) then
+            local hum = npc:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local dist = (npc.HumanoidRootPart.Position - myHRP.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = npc
+                end
+            end
+        end
+    end
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    if CamLock.PlayerEnabled then
+        if not CamLock.LockedPlayer or not CamLock.LockedPlayer:FindFirstChild("HumanoidRootPart") then
+            CamLock.LockedPlayer = getClosestPlayerForLock()
+        end
+        local target = CamLock.LockedPlayer
+        if target and target:FindFirstChild("HumanoidRootPart") then
+            local hum = target:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local targetPos = target.HumanoidRootPart.Position + Vector3.new(0, 0.5, 0)
+                camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, targetPos), CamLock.Smoothness)
+            else
+                CamLock.LockedPlayer = nil
+            end
+        else
+            CamLock.LockedPlayer = nil
+        end
+    else
+        CamLock.LockedPlayer = nil
+    end
+
+    if CamLock.NpcEnabled then
+        if not CamLock.LockedNpc or not CamLock.LockedNpc:FindFirstChild("HumanoidRootPart") then
+            CamLock.LockedNpc = getClosestNpcForLock()
+        end
+        local target = CamLock.LockedNpc
+        if target and target:FindFirstChild("HumanoidRootPart") then
+            local hum = target:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local targetPos = target.HumanoidRootPart.Position + Vector3.new(0, 0.5, 0)
+                camera.CFrame = camera.CFrame:Lerp(CFrame.lookAt(camera.CFrame.Position, targetPos), CamLock.Smoothness)
+            else
+                CamLock.LockedNpc = nil
+            end
+        else
+            CamLock.LockedNpc = nil
+        end
+    else
+        CamLock.LockedNpc = nil
+    end
+end)
+
+-- ============================================================
+-- ESP HELPERS (con warning + pvp + team colors)
+-- ============================================================
+local espObjects = {}
+local espPlayerCache = {}
+
+local function getTeamInfo(targetP)
+    if not targetP or not targetP.Team then
+        return "Unknown", Color3.fromRGB(255, 255, 255)
+    end
+    if targetP.Team.Name == "Marines" then
+        return "Marines", Color3.fromRGB(0, 170, 255)
+    else
+        return "Pirates", Color3.fromRGB(255, 70, 70)
+    end
+end
+
+local function removeESP(targetP)
+    if espObjects[targetP] then
+        pcall(function()
+            if espObjects[targetP].gui then espObjects[targetP].gui:Destroy() end
+            if espObjects[targetP].highlight then espObjects[targetP].highlight:Destroy() end
+        end)
+        espObjects[targetP] = nil
+    end
+end
+
+local function createESP(targetP)
+    if not targetP or targetP == player then return end
+    local char = targetP.Character
+    if not char then return end
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+
+    local team, color = getTeamInfo(targetP)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "RadicalESP_Billboard"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 200, 0, 85)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = head
+
+    local text = Instance.new("TextLabel")
+    text.Size = UDim2.new(1, 0, 1, 0)
+    text.BackgroundTransparency = 1
+    text.TextSize = ESP.TextSize
+    text.RichText = true
+    text.Font = Enum.Font.SourceSansBold
+    text.TextStrokeTransparency = 0
+    text.TextColor3 = color
+    text.Parent = billboard
+
+    local highlight = nil
+    if ESP.ShowHighlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_PlayerHighlight"
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        highlight.FillColor = color
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = color
+        highlight.OutlineTransparency = 0
+        highlight.Parent = char
+    end
+
+    espObjects[targetP] = {
+        gui = billboard,
+        label = text,
+        char = char,
+        highlight = highlight
+    }
+end
+
+local function getPlayerDataESP(targetP)
+    if not espPlayerCache[targetP] then
+        espPlayerCache[targetP] = { level = "?", fruit = "None", bounty = 0, team = "Unknown", color = Color3.fromRGB(255, 255, 255), lastUpdate = 0 }
+    end
+    local data = espPlayerCache[targetP]
+    local now = tick()
+    if now - data.lastUpdate > 5 then
+        pcall(function() data.level = targetP.Data.Level.Value end)
+        pcall(function() data.fruit = targetP.Data.DevilFruit.Value end)
+        pcall(function() data.bounty = targetP.leaderstats["Bounty/Honor"].Value end)
+        data.team, data.color = getTeamInfo(targetP)
+        data.lastUpdate = now
+    end
+    return data
+end
+
+local function updateESP()
+    local myChar = player.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+    local myPos = myRoot.Position
+
+    for _, targetP in ipairs(Players:GetPlayers()) do
+        if targetP ~= player then
+            local char = targetP.Character
+            local head = char and char:FindFirstChild("Head")
+            local data = espObjects[targetP]
+            if char and head then
+                if not data or data.char ~= char or not data.gui.Parent then
+                    removeESP(targetP)
+                    createESP(targetP)
+                    data = espObjects[targetP]
+                end
+                if data then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+                    if hum and root then
+                        local distance = math.floor((root.Position - myPos).Magnitude)
+                        local hp = math.floor((hum.Health / math.max(hum.MaxHealth, 1)) * 100)
+                        local pData = getPlayerDataESP(targetP)
+                        data.label.TextColor3 = pData.color
+                        if data.label.TextSize ~= ESP.TextSize then data.label.TextSize = ESP.TextSize end
+
+                        -- Warning de bounty alto
+                        local warnTag = ""
+                        if ESP.ShowWarning and type(pData.bounty) == "number" and pData.bounty > 10000000 then
+                            warnTag = "⚠ "
+                        end
+
+                        -- PvP status
+                        local pvpLine = ""
+                        if ESP.ShowPvPStatus then
+                            local isPvpDisabled = targetP:GetAttribute("PvpDisabled") == true
+                            if isPvpDisabled then
+                                pvpLine = "\n🟢 PvP Disabled\n"
+                            else
+                                pvpLine = "\n🔴 PvP Enabled\n"
+                            end
+                        end
+
+                        local parts = {}
+                        if ESP.ShowName then parts[#parts+1] = warnTag .. "[" .. pData.team .. "] <font color=\"rgb(255,255,0)\">" .. targetP.Name .. "</font>" end
+                        if ESP.ShowLevel then parts[#parts+1] = " [Lv." .. pData.level .. "]" end
+                        parts[#parts+1] = pvpLine
+                        if ESP.ShowFruit then parts[#parts+1] = "Fruit: " .. tostring(pData.fruit) .. "\n" end
+                        if ESP.ShowBounty then
+                            local bM = type(pData.bounty) == "number" and math.floor(pData.bounty / 1000000) or 0
+                            parts[#parts+1] = "Bounty: " .. bM .. "M\n"
+                        end
+                        if ESP.ShowDistance then parts[#parts+1] = distance .. "m | " end
+                        if ESP.ShowHP then parts[#parts+1] = "HP " .. hp .. "%" end
+                        data.label.Text = table.concat(parts)
+
+                        if ESP.ShowHighlight then
+                            if not data.highlight or not data.highlight.Parent then
+                                local hl = Instance.new("Highlight")
+                                hl.Name = "ESP_PlayerHighlight"
+                                hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                                hl.FillColor = pData.color
+                                hl.FillTransparency = 0.5
+                                hl.OutlineColor = pData.color
+                                hl.OutlineTransparency = 0
+                                hl.Parent = char
+                                data.highlight = hl
+                            else
+                                data.highlight.FillColor = pData.color
+                                data.highlight.OutlineColor = pData.color
+                            end
+                        else
+                            if data.highlight then
+                                data.highlight:Destroy()
+                                data.highlight = nil
+                            end
+                        end
+                    end
+                end
+            else
+                if data then removeESP(targetP) end
+            end
+        end
+    end
+end
+
+local function enableESP()
+    for _, targetP in ipairs(Players:GetPlayers()) do
+        createESP(targetP)
+    end
+end
+
+local function disableESP()
+    for targetP, _ in pairs(espObjects) do
+        removeESP(targetP)
+    end
+    espObjects = {}
+end
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if ESP.Enabled then updateESP() end
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+    removeESP(p)
+    espPlayerCache[p] = nil
+end)
+
+-- ============================================================
+-- SORU HELPERS
+-- ============================================================
 local function getSoruClosestPlayer(overrideMaxDist)
     local myHRP = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
     if not myHRP then return nil end
@@ -589,6 +895,9 @@ end
 player.CharacterAdded:Connect(monitorCharPortal)
 if player.Character then monitorCharPortal(player.Character) end
 
+-- ============================================================
+-- COMBATE: SILENT AIM
+-- ============================================================
 local function IsSilentAimAlly(p)
     local main = player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("Main")
     local frame = main and main:FindFirstChild("Allies") and main.Allies:FindFirstChild("Container") and main.Allies.Container:FindFirstChild("Allies") and main.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
@@ -671,6 +980,9 @@ RunService.RenderStepped:Connect(function()
     if _G_SilentAimSkill then currentSilentAimTarget = GetClosestTarget() else currentSilentAimTarget = nil end
 end)
 
+-- ============================================================
+-- COMBATE: AUTO M1 (GUN)
+-- ============================================================
 local DragonModules = ReplicatedStorage:WaitForChild("Modules")
 local DragonNet = DragonModules:WaitForChild("Net")
 local ShootGunEvent = DragonNet:WaitForChild("RE/ShootGunEvent")
@@ -801,6 +1113,9 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
+-- COMBATE: FAST ATTACK
+-- ============================================================
 task.spawn(function()
     while task.wait(0.03) do
         if _G_GhostAttack then
@@ -859,12 +1174,18 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
+-- COMBATE: AUTO KEN
+-- ============================================================
 task.spawn(function()
     while task.wait(0.5) do
         if _G_AutoKen then pcall(function() commE:FireServer("Ken", true) end) end
     end
 end)
 
+-- ============================================================
+-- JUMP + SANGUINE MANUAL
+-- ============================================================
 local function executeJump()
     local char = player.Character
     if not char then return end
@@ -1434,6 +1755,9 @@ task.spawn(function()
     end
 end)
 
+-- ============================================================
+-- HOME
+-- ============================================================
 local homePage = UI.Pages["Home"]
 if homePage then
     local l1 = Instance.new("TextLabel", homePage)
@@ -1452,6 +1776,9 @@ if homePage then
     l2.TextSize = 10
 end
 
+-- ============================================================
+-- COMBAT
+-- ============================================================
 local combatePage = UI.Pages["Combat"] or UI.Pages["Combate"]
 if combatePage then
     local combateScroll = ensureScroll(combatePage)
@@ -1483,11 +1810,15 @@ if combatePage then
     createToggle(combateScroll, "Auto Ken", function() return _G_AutoKen end, function(v) _G_AutoKen = v end, 158)
 end
 
+-- ============================================================
+-- MAIN (Cam Lock + ESP completo)
+-- ============================================================
 local mainPage = UI.Pages["Main"]
 if mainPage then
     local mainScroll = ensureScroll(mainPage)
-    mainScroll.CanvasSize = UDim2.new(0, 0, 0, 250)
+    mainScroll.CanvasSize = UDim2.new(0, 0, 0, 750)
 
+    -- WalkSpeed
     local wsFrame = Instance.new("Frame", mainScroll)
     wsFrame.Size = UDim2.new(1, -8, 0, 60)
     wsFrame.Position = UDim2.new(0, 4, 0, 0)
@@ -1578,6 +1909,7 @@ if mainPage then
 
     createToggle(mainScroll, "Infinite Jump", function() return HUB_CONFIG.InfiniteJump end, function(v) HUB_CONFIG.InfiniteJump = v end, 66)
 
+    -- Dash
     local dashFrame = Instance.new("Frame", mainScroll)
     dashFrame.Size = UDim2.new(1, -8, 0, 60)
     dashFrame.Position = UDim2.new(0, 4, 0, 96)
@@ -1656,8 +1988,139 @@ if mainPage then
         dashValue.Text = tostring(HUB_CONFIG.DashDistance)
         if HUB_CONFIG.DashEnabled then applyDashInstantly() end
     end)
+
+    -- Separador
+    local sepCam = Instance.new("Frame", mainScroll)
+    sepCam.Size = UDim2.new(1, 0, 0, 1)
+    sepCam.Position = UDim2.new(0, 0, 0, 170)
+    sepCam.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sepCam.BackgroundTransparency = 0.5
+    sepCam.BorderSizePixel = 0
+    sepCam.ZIndex = 3
+
+    local camTitle = Instance.new("TextLabel", mainScroll)
+    camTitle.Size = UDim2.new(1, 0, 0, 16)
+    camTitle.Position = UDim2.new(0, 0, 0, 176)
+    camTitle.BackgroundTransparency = 1
+    camTitle.Text = "CAM LOCK"
+    camTitle.TextColor3 = T.Admin
+    camTitle.Font = Enum.Font.GothamBold
+    camTitle.TextSize = 10
+    camTitle.ZIndex = 3
+
+    createToggle(mainScroll, "Lock Players", function() return CamLock.PlayerEnabled end, function(v)
+        CamLock.PlayerEnabled = v
+    end, 198)
+
+    createToggle(mainScroll, "Lock NPCs", function() return CamLock.NpcEnabled end, function(v)
+        CamLock.NpcEnabled = v
+    end, 228)
+
+    local targetBtn = Instance.new("TextButton", mainScroll)
+    targetBtn.Size = UDim2.new(1, -8, 0, 24)
+    targetBtn.Position = UDim2.new(0, 4, 0, 260)
+    targetBtn.BackgroundColor3 = T.ButtonIdle
+    targetBtn.Text = "Target: " .. CamLock.TargetPlayer
+    targetBtn.TextColor3 = T.TextWhite
+    targetBtn.Font = Enum.Font.GothamBold
+    targetBtn.TextSize = 9
+    targetBtn.BorderSizePixel = 0
+    targetBtn.ZIndex = 3
+    Instance.new("UICorner", targetBtn).CornerRadius = UDim.new(0, 4)
+    targetBtn.MouseButton1Click:Connect(function()
+        local plist = {"Nearest"}
+        for _, p in ipairs(Players:GetPlayers()) do if p ~= player then table.insert(plist, p.Name) end end
+        local currIdx = table.find(plist, CamLock.TargetPlayer) or 1
+        CamLock.TargetPlayer = plist[(currIdx % #plist) + 1]
+        targetBtn.Text = "Target: " .. CamLock.TargetPlayer
+    end)
+
+    local smoothFrame = Instance.new("Frame", mainScroll)
+    smoothFrame.Size = UDim2.new(1, -8, 0, 24)
+    smoothFrame.Position = UDim2.new(0, 4, 0, 292)
+    smoothFrame.BackgroundColor3 = T.ButtonIdle
+    smoothFrame.BorderSizePixel = 0
+    smoothFrame.ZIndex = 3
+    Instance.new("UICorner", smoothFrame).CornerRadius = UDim.new(0, 4)
+    local smoothLabel = Instance.new("TextLabel", smoothFrame)
+    smoothLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    smoothLabel.Position = UDim2.new(0, 8, 0, 0)
+    smoothLabel.BackgroundTransparency = 1
+    smoothLabel.Text = "Smoothness: " .. string.format("%.1f", CamLock.Smoothness)
+    smoothLabel.TextColor3 = T.TextWhite
+    smoothLabel.Font = Enum.Font.GothamBold
+    smoothLabel.TextSize = 9
+    smoothLabel.TextXAlignment = Enum.TextXAlignment.Left
+    smoothLabel.ZIndex = 4
+    local sMinus = Instance.new("TextButton", smoothFrame)
+    sMinus.Size = UDim2.new(0, 28, 0, 20)
+    sMinus.Position = UDim2.new(1, -66, 0.5, -10)
+    sMinus.BackgroundColor3 = T.ButtonActive
+    sMinus.Text = "-"
+    sMinus.TextColor3 = T.TextWhite
+    sMinus.Font = Enum.Font.GothamBold
+    sMinus.TextSize = 12
+    sMinus.BorderSizePixel = 0
+    sMinus.ZIndex = 4
+    Instance.new("UICorner", sMinus).CornerRadius = UDim.new(0, 4)
+    local sPlus = Instance.new("TextButton", smoothFrame)
+    sPlus.Size = UDim2.new(0, 28, 0, 20)
+    sPlus.Position = UDim2.new(1, -34, 0.5, -10)
+    sPlus.BackgroundColor3 = T.ButtonActive
+    sPlus.Text = "+"
+    sPlus.TextColor3 = T.TextWhite
+    sPlus.Font = Enum.Font.GothamBold
+    sPlus.TextSize = 12
+    sPlus.BorderSizePixel = 0
+    sPlus.ZIndex = 4
+    Instance.new("UICorner", sPlus).CornerRadius = UDim.new(0, 4)
+    sMinus.MouseButton1Click:Connect(function()
+        CamLock.Smoothness = math.max(0.1, CamLock.Smoothness - 0.1)
+        smoothLabel.Text = "Smoothness: " .. string.format("%.1f", CamLock.Smoothness)
+    end)
+    sPlus.MouseButton1Click:Connect(function()
+        CamLock.Smoothness = math.min(1.0, CamLock.Smoothness + 0.1)
+        smoothLabel.Text = "Smoothness: " .. string.format("%.1f", CamLock.Smoothness)
+    end)
+
+    -- Separador ESP
+    local sepEsp = Instance.new("Frame", mainScroll)
+    sepEsp.Size = UDim2.new(1, 0, 0, 1)
+    sepEsp.Position = UDim2.new(0, 0, 0, 328)
+    sepEsp.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    sepEsp.BackgroundTransparency = 0.5
+    sepEsp.BorderSizePixel = 0
+    sepEsp.ZIndex = 3
+
+    local espTitle = Instance.new("TextLabel", mainScroll)
+    espTitle.Size = UDim2.new(1, 0, 0, 16)
+    espTitle.Position = UDim2.new(0, 0, 0, 334)
+    espTitle.BackgroundTransparency = 1
+    espTitle.Text = "ESP"
+    espTitle.TextColor3 = T.Admin
+    espTitle.Font = Enum.Font.GothamBold
+    espTitle.TextSize = 10
+    espTitle.ZIndex = 3
+
+    createToggle(mainScroll, "Master ESP", function() return ESP.Enabled end, function(v)
+        ESP.Enabled = v
+        if v then enableESP() else disableESP() end
+    end, 356)
+
+    createToggle(mainScroll, "Show Name", function() return ESP.ShowName end, function(v) ESP.ShowName = v end, 386)
+    createToggle(mainScroll, "Show Level", function() return ESP.ShowLevel end, function(v) ESP.ShowLevel = v end, 416)
+    createToggle(mainScroll, "Show Bounty", function() return ESP.ShowBounty end, function(v) ESP.ShowBounty = v end, 446)
+    createToggle(mainScroll, "Show Fruit", function() return ESP.ShowFruit end, function(v) ESP.ShowFruit = v end, 476)
+    createToggle(mainScroll, "Show Distance", function() return ESP.ShowDistance end, function(v) ESP.ShowDistance = v end, 506)
+    createToggle(mainScroll, "Show HP", function() return ESP.ShowHP end, function(v) ESP.ShowHP = v end, 536)
+    createToggle(mainScroll, "Highlight", function() return ESP.ShowHighlight end, function(v) ESP.ShowHighlight = v end, 566)
+    createToggle(mainScroll, "Warning (+10M)", function() return ESP.ShowWarning end, function(v) ESP.ShowWarning = v end, 596)
+    createToggle(mainScroll, "PvP Status", function() return ESP.ShowPvPStatus end, function(v) ESP.ShowPvPStatus = v end, 626)
 end
 
+-- ============================================================
+-- GLITCH
+-- ============================================================
 local glitchPage = UI.Pages["Glitch"]
 if glitchPage then
     local glitchScroll = ensureScroll(glitchPage)
@@ -1680,6 +2143,9 @@ if glitchPage then
     end, 90)
 end
 
+-- ============================================================
+-- APPEARANCE
+-- ============================================================
 local appPage = UI.Pages["Appearance"]
 if appPage then
     local appScroll = ensureScroll(appPage)
@@ -1761,6 +2227,9 @@ if appPage then
     end
 end
 
+-- ============================================================
+-- SORU
+-- ============================================================
 local soruPage = UI.Pages["Soru"]
 if soruPage then
     local soruScroll = ensureScroll(soruPage)
@@ -1839,6 +2308,9 @@ if soruPage then
     end)
 end
 
+-- ============================================================
+-- SETTING
+-- ============================================================
 local settingPage = UI.Pages["Setting"]
 if settingPage then
     local settingScroll = ensureScroll(settingPage)
