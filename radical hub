@@ -519,7 +519,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================================
--- ESP HELPERS (con warning + pvp + team colors)
+-- ESP HELPERS
 -- ============================================================
 local espObjects = {}
 local espPlayerCache = {}
@@ -634,13 +634,11 @@ local function updateESP()
                         data.label.TextColor3 = pData.color
                         if data.label.TextSize ~= ESP.TextSize then data.label.TextSize = ESP.TextSize end
 
-                        -- Warning de bounty alto
                         local warnTag = ""
                         if ESP.ShowWarning and type(pData.bounty) == "number" and pData.bounty > 10000000 then
                             warnTag = "⚠ "
                         end
 
-                        -- PvP status
                         local pvpLine = ""
                         if ESP.ShowPvPStatus then
                             local isPvpDisabled = targetP:GetAttribute("PvpDisabled") == true
@@ -981,7 +979,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- ============================================================
--- COMBATE: AUTO M1 (GUN)
+-- COMBATE: AUTO M1 (GUN) - PLAYERS FIRST
 -- ============================================================
 local DragonModules = ReplicatedStorage:WaitForChild("Modules")
 local DragonNet = DragonModules:WaitForChild("Net")
@@ -1034,12 +1032,41 @@ local function GetNextValidator()
     return math.floor(v9 / v4 * 16777215), v7
 end
 
+-- 🔥 NUEVA FUNCIÓN: SIEMPRE PRIORIZA PLAYERS
 local function GetClosestDragonTarget()
     local char = player.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
     if not root then return nil, nil end
-    local closest, closestHum, dist = nil, nil, math.huge
     local myPos = root.Position
+
+    -- ⭐ 1. SIEMPRE BUSCAR AL PLAYER MÁS CERCANO PRIMERO
+    local closestPlayer, closestPlayerHum, closestPlayerDist = nil, nil, math.huge
+    if _G_AttackPlayers then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                local r = p.Character:FindFirstChild("HumanoidRootPart")
+                local head = p.Character:FindFirstChild("Head")
+                if hum and hum.Health > 0 and (r or head) then
+                    local part = head or r
+                    local d = (part.Position - myPos).Magnitude
+                    if d < closestPlayerDist then
+                        closestPlayerDist = d
+                        closestPlayer = part
+                        closestPlayerHum = hum
+                    end
+                end
+            end
+        end
+    end
+
+    -- 🔥 SIEMPRE priorizar players (aunque estén lejos)
+    if closestPlayer then
+        return closestPlayer, closestPlayerHum
+    end
+
+    -- ⭐ 2. SI NO HAY PLAYERS: usar NPC más cercano
+    local closestNpc, closestNpcHum, closestNpcDist = nil, nil, math.huge
     if _G_AttackMobs then
         local enemies = workspace:FindFirstChild("Enemies")
         if enemies then
@@ -1050,26 +1077,17 @@ local function GetClosestDragonTarget()
                 if hum and hum.Health > 0 and (r or head) then
                     local part = head or r
                     local d = (part.Position - myPos).Magnitude
-                    if d < dist then dist = d; closest = part; closestHum = hum end
+                    if d < closestNpcDist then
+                        closestNpcDist = d
+                        closestNpc = part
+                        closestNpcHum = hum
+                    end
                 end
             end
         end
     end
-    if _G_AttackPlayers then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= player and p.Character then
-                local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                local r = p.Character:FindFirstChild("HumanoidRootPart")
-                local head = p.Character:FindFirstChild("Head")
-                if hum and hum.Health > 0 and (r or head) then
-                    local part = head or r
-                    local d = (part.Position - myPos).Magnitude
-                    if d < dist then dist = d; closest = part; closestHum = hum end
-                end
-            end
-        end
-    end
-    return closest, closestHum
+
+    return closestNpc, closestNpcHum
 end
 
 local function FireGunAt(targetPart)
@@ -1755,9 +1773,6 @@ task.spawn(function()
     end
 end)
 
--- ============================================================
--- HOME
--- ============================================================
 local homePage = UI.Pages["Home"]
 if homePage then
     local l1 = Instance.new("TextLabel", homePage)
@@ -1776,9 +1791,6 @@ if homePage then
     l2.TextSize = 10
 end
 
--- ============================================================
--- COMBAT
--- ============================================================
 local combatePage = UI.Pages["Combat"] or UI.Pages["Combate"]
 if combatePage then
     local combateScroll = ensureScroll(combatePage)
@@ -1810,15 +1822,11 @@ if combatePage then
     createToggle(combateScroll, "Auto Ken", function() return _G_AutoKen end, function(v) _G_AutoKen = v end, 158)
 end
 
--- ============================================================
--- MAIN (Cam Lock + ESP completo)
--- ============================================================
 local mainPage = UI.Pages["Main"]
 if mainPage then
     local mainScroll = ensureScroll(mainPage)
     mainScroll.CanvasSize = UDim2.new(0, 0, 0, 750)
 
-    -- WalkSpeed
     local wsFrame = Instance.new("Frame", mainScroll)
     wsFrame.Size = UDim2.new(1, -8, 0, 60)
     wsFrame.Position = UDim2.new(0, 4, 0, 0)
@@ -1909,7 +1917,6 @@ if mainPage then
 
     createToggle(mainScroll, "Infinite Jump", function() return HUB_CONFIG.InfiniteJump end, function(v) HUB_CONFIG.InfiniteJump = v end, 66)
 
-    -- Dash
     local dashFrame = Instance.new("Frame", mainScroll)
     dashFrame.Size = UDim2.new(1, -8, 0, 60)
     dashFrame.Position = UDim2.new(0, 4, 0, 96)
@@ -1989,7 +1996,6 @@ if mainPage then
         if HUB_CONFIG.DashEnabled then applyDashInstantly() end
     end)
 
-    -- Separador
     local sepCam = Instance.new("Frame", mainScroll)
     sepCam.Size = UDim2.new(1, 0, 0, 1)
     sepCam.Position = UDim2.new(0, 0, 0, 170)
@@ -2083,7 +2089,6 @@ if mainPage then
         smoothLabel.Text = "Smoothness: " .. string.format("%.1f", CamLock.Smoothness)
     end)
 
-    -- Separador ESP
     local sepEsp = Instance.new("Frame", mainScroll)
     sepEsp.Size = UDim2.new(1, 0, 0, 1)
     sepEsp.Position = UDim2.new(0, 0, 0, 328)
@@ -2118,9 +2123,6 @@ if mainPage then
     createToggle(mainScroll, "PvP Status", function() return ESP.ShowPvPStatus end, function(v) ESP.ShowPvPStatus = v end, 626)
 end
 
--- ============================================================
--- GLITCH
--- ============================================================
 local glitchPage = UI.Pages["Glitch"]
 if glitchPage then
     local glitchScroll = ensureScroll(glitchPage)
@@ -2143,9 +2145,6 @@ if glitchPage then
     end, 90)
 end
 
--- ============================================================
--- APPEARANCE
--- ============================================================
 local appPage = UI.Pages["Appearance"]
 if appPage then
     local appScroll = ensureScroll(appPage)
@@ -2227,9 +2226,6 @@ if appPage then
     end
 end
 
--- ============================================================
--- SORU
--- ============================================================
 local soruPage = UI.Pages["Soru"]
 if soruPage then
     local soruScroll = ensureScroll(soruPage)
@@ -2254,7 +2250,7 @@ if soruPage then
     Instance.new("UICorner", targetBtn).CornerRadius = UDim.new(0, 4)
     targetBtn.MouseButton1Click:Connect(function()
         local plist = {"Nearest"}
-        for _, p in pairs(Players:GetPlayers()) do if p ~= player then table.insert(plist, p.Name) end end
+        for _, p in ipairs(Players:GetPlayers()) do if p ~= player then table.insert(plist, p.Name) end end
         local currIdx = table.find(plist, SelectedSoruTarget) or 1
         SelectedSoruTarget = plist[(currIdx % #plist) + 1]
         targetBtn.Text = "Target: " .. SelectedSoruTarget
@@ -2308,9 +2304,6 @@ if soruPage then
     end)
 end
 
--- ============================================================
--- SETTING
--- ============================================================
 local settingPage = UI.Pages["Setting"]
 if settingPage then
     local settingScroll = ensureScroll(settingPage)
