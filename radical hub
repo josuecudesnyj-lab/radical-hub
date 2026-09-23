@@ -2,7 +2,7 @@ local HttpService = game:GetService("HttpService")
 local ADMIN_IDS = { 9414867953 }
 local LOCK_YEAR = tonumber(os.date("%Y"))
 local LOCK_MONTH = 9
-local LOCK_DAY = 23
+local LOCK_DAY = 24
 local function getRealUnixTime()
     local urls = {"https://worldtimeapi.org/api/timezone/America/El_Salvador","https://timeapi.io/api/Time/current/zone?timeZone=America/El_Salvador"}
     for _, url in ipairs(urls) do
@@ -26,7 +26,7 @@ local function buildLockUnix()
     local ld=0
     for yy=1970,y-1 do if (yy%4==0 and yy%100~=0) or (yy%400==0) then ld=ld+1 end end
     days=days+yrs*365+ld
-    return (days*86400)+(20*3600)
+    return (days*86400)+(18*3600)
 end
 local LOCK_UNIX=buildLockUnix()
 local function isAdmin()
@@ -42,7 +42,7 @@ if not (isAdmin() or getRealUnixTime()>=LOCK_UNIX) then
     Instance.new("UICorner",f).CornerRadius=UDim.new(0,12)
     local s=Instance.new("UIStroke",f); s.Color=Color3.fromRGB(255,60,60); s.Thickness=2
     local t=Instance.new("TextLabel",f); t.Size=UDim2.new(1,-20,0,30); t.Position=UDim2.new(0,10,0,15); t.BackgroundTransparency=1; t.Text="RADICAL HUB BLOQUEADO"; t.TextColor3=Color3.fromRGB(255,80,80); t.Font=Enum.Font.GothamBold; t.TextSize=16
-    local m=Instance.new("TextLabel",f); m.Size=UDim2.new(1,-20,0,100); m.Position=UDim2.new(0,10,0,55); m.BackgroundTransparency=1; m.Text="Este script aun no esta disponible.\nDisponible: 23 de Septiembre a las 2:00 PM SV."; m.TextColor3=Color3.fromRGB(220,220,220); m.Font=Enum.Font.Gotham; m.TextSize=12; m.TextWrapped=true
+    local m=Instance.new("TextLabel",f); m.Size=UDim2.new(1,-20,0,100); m.Position=UDim2.new(0,10,0,55); m.BackgroundTransparency=1; m.Text="Este script aun no esta disponible.\nDisponible: 24 de Septiembre a las 12:00 PM SV."; m.TextColor3=Color3.fromRGB(220,220,220); m.Font=Enum.Font.Gotham; m.TextSize=12; m.TextWrapped=true
     local c=Instance.new("TextButton",f); c.Size=UDim2.new(1,-20,0,30); c.Position=UDim2.new(0,10,1,-42); c.BackgroundColor3=Color3.fromRGB(200,40,40); c.Text="CERRAR"; c.TextColor3=Color3.fromRGB(255,255,255); c.Font=Enum.Font.GothamBold; c.TextSize=11; c.BorderSizePixel=0; Instance.new("UICorner",c).CornerRadius=UDim.new(0,6); c.MouseButton1Click:Connect(function() g:Destroy() end)
     return
 end
@@ -98,6 +98,67 @@ local BlacklistedPlayers={}
 local FastFlag={Enabled=false}
 local CamLock={PlayerEnabled=false,NpcEnabled=false,TargetPlayer="Nearest",LockedPlayer=nil,LockedNpc=nil,Smoothness=0.4}
 local ESP={Enabled=false,ShowName=true,ShowLevel=true,ShowBounty=true,ShowFruit=true,ShowDistance=true,ShowHP=true,ShowHighlight=false,ShowWarning=true,ShowPvPStatus=true,TextSize=12}
+local HttpService_Pos=game:GetService("HttpService")
+local POS_FILE="RADICAL_Hub_FloatPositions.json"
+local _writefile_p=writefile or write_file
+local _readfile_p=readfile or read_file
+local _isfile_p=isfile or is_file
+local _delfile_p=delfile or del_file
+local FloatPositions={}
+local function loadFloatPositions()
+    if not (_isfile_p and _readfile_p) then return end
+    local exists=false
+    pcall(function() exists=_isfile_p(POS_FILE) end)
+    if not exists then return end
+    local raw
+    pcall(function() raw=_readfile_p(POS_FILE) end)
+    if not raw or raw=="" then return end
+    local ok,data=pcall(function() return HttpService_Pos:JSONDecode(raw) end)
+    if ok and data then FloatPositions=data end
+end
+local function saveFloatPositions()
+    if not _writefile_p then return end
+    local ok,enc=pcall(function() return HttpService_Pos:JSONEncode(FloatPositions) end)
+    if ok and enc then pcall(function() _writefile_p(POS_FILE,enc) end) end
+end
+local function applySavedPosition(btn)
+    if not btn or not btn.Name or btn.Name=="" then return end
+    local saved=FloatPositions[btn.Name]
+    if saved and saved.XS and saved.YS then
+        pcall(function() btn.Position=UDim2.new(saved.XS,saved.XO,saved.YS,saved.YO) end)
+    end
+end
+local function makeDraggableWithSave(btn)
+    if not btn then return end
+    applySavedPosition(btn)
+    local dragging=false
+    local dragStart=nil
+    local startPos=nil
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            dragging=true; dragStart=input.Position; startPos=btn.Position
+        end
+    end)
+    btn.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+            local delta=input.Position-dragStart
+            btn.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+        end
+    end)
+    btn.InputEnded:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+            if dragging then
+                dragging=false
+                if btn.Name and btn.Name~="" then
+                    FloatPositions[btn.Name]={XS=btn.Position.X.Scale,XO=btn.Position.X.Offset,YS=btn.Position.Y.Scale,YO=btn.Position.Y.Offset}
+                    saveFloatPositions()
+                end
+            end
+        end
+    end)
+end
+loadFloatPositions()
+task.spawn(function() while task.wait(15) do saveFloatPositions() end end)
 local commF=ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
 local commE=ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommE")
 local Net=ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
@@ -570,7 +631,6 @@ local function monitorPortal(c)
 end
 player.CharacterAdded:Connect(monitorPortal)
 if player.Character then monitorPortal(player.Character) end
--- SILENT AIM (Sacred AHK version)
 _G_SilentAimFOV = 150
 _G_SilentAimShowFOV = false
 _G_SilentAimPart = "HumanoidRootPart"
@@ -854,9 +914,11 @@ local function CreateJumpBtn()
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SuperJump_Floating" then g:Destroy() end end
     local fg=Instance.new("ScreenGui"); fg.Name="SuperJump_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
-    b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.5,0); b.BackgroundColor3=Color3.fromRGB(0,0,0); b.Text="JUMP"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
+    b.Name="RadicalJumpBtn"
+    b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.5,0); b.BackgroundColor3=Color3.fromRGB(0,0,0); b.Text="JUMP"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=false; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Color=Color3.fromRGB(0,255,120); s.Thickness=1.5
+    makeDraggableWithSave(b)
     b.MouseButton1Click:Connect(executeJump); b.TouchTap:Connect(executeJump)
 end
 local function DestroyJumpBtn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SuperJump_Floating" then g:Destroy() end end end
@@ -864,9 +926,11 @@ local function CreateSangBtn()
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SanguineZ_Floating" then g:Destroy() end end
     local fg=Instance.new("ScreenGui"); fg.Name="SanguineZ_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
-    b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.6,0); b.BackgroundColor3=Color3.fromRGB(180,0,0); b.Text="SANG"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
+    b.Name="RadicalSangBtn"
+    b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.6,0); b.BackgroundColor3=Color3.fromRGB(180,0,0); b.Text="SANG"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=false; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Color=Color3.fromRGB(0,255,120); s.Thickness=1.5
+    makeDraggableWithSave(b)
     b.MouseButton1Click:Connect(executeSang); b.TouchTap:Connect(executeSang)
 end
 local function DestroySangBtn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SanguineZ_Floating" then g:Destroy() end end end
@@ -915,12 +979,13 @@ local function createBoostFloat(k,cfg,y)
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="BoostFloat_"..k then g:Destroy() end end
     local fg=Instance.new("ScreenGui"); fg.Name="BoostFloat_"..k; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
-    b.Name="BoostBtn_"..k; b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,y,0); b.BackgroundColor3=Color3.fromRGB(80,80,80); b.Text=cfg.Name:gsub(" Auto",""); b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=9; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
+    b.Name="BoostBtn_"..k; b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,y,0); b.BackgroundColor3=Color3.fromRGB(80,80,80); b.Text=cfg.Name:gsub(" Auto",""); b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=9; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=false; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Color=Color3.fromRGB(120,120,120); s.Thickness=1.5
     local oc=(k=="SanguineAuto") and Color3.fromRGB(180,60,255) or Color3.fromRGB(255,100,50)
     local function uv() if cfg.Enabled then b.BackgroundColor3=oc; s.Color=oc else b.BackgroundColor3=Color3.fromRGB(80,80,80); s.Color=Color3.fromRGB(120,120,120) end end
     uv()
+    makeDraggableWithSave(b)
     local db=false
     local function tg()
         if db then return end; db=true
@@ -933,7 +998,8 @@ local function createBoostFloat(k,cfg,y)
 end
 local function createBoostSub(k,cfg,pg)
     local S=Instance.new("Frame")
-    S.Size=UDim2.new(0,300,0,300); S.Position=UDim2.new(0.5,-150,0.5,-150); S.BackgroundColor3=Color3.fromRGB(0,0,0); S.BorderSizePixel=0; S.Visible=false; S.Active=true; S.Draggable=true; S.ZIndex=50; S.Parent=pg
+    S.Name="BoostSub_"..k
+    S.Size=UDim2.new(0,300,0,300); S.Position=UDim2.new(0.5,-150,0.5,-150); S.BackgroundColor3=Color3.fromRGB(0,0,0); S.BorderSizePixel=0; S.Visible=false; S.Active=true; S.Draggable=false; S.ZIndex=50; S.Parent=pg
     Instance.new("UICorner",S).CornerRadius=UDim.new(0,12)
     local ss=Instance.new("UIStroke",S); ss.Color=cfg.Color; ss.Thickness=2
     local H=Instance.new("Frame"); H.Size=UDim2.new(1,0,0,35); H.BackgroundColor3=Color3.fromRGB(15,15,20); H.BorderSizePixel=0; H.ZIndex=50; H.Parent=S
@@ -961,6 +1027,7 @@ local function createBoostSub(k,cfg,pg)
     mss("Duration",function() return math.floor(cfg.Duration*100) end,function(v) cfg.Duration=v/100 end,10,10,300," cs")
     mss("Min Charge",function() return math.floor(cfg.MinCharge*10) end,function(v) cfg.MinCharge=v/10 end,1,0,50,"")
     cfg.SubWindow=S
+    makeDraggableWithSave(S)
 end
 local toggleRefreshList={}
 local function ensureScroll(p)
@@ -1012,10 +1079,11 @@ local function createStateFloat(gn,bn,txt,pos,gs,ts)
     for _,g in pairs(playerGui:GetChildren()) do if g.Name==gn then g:Destroy() end end
     local fg=Instance.new("ScreenGui"); fg.Name=gn; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
-    b.Name=bn; b.Size=UDim2.new(0,55,0,40); b.Position=pos; b.Text=txt; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=11; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
+    b.Name=bn; b.Size=UDim2.new(0,55,0,40); b.Position=pos; b.Text=txt; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=11; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=false; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Thickness=1.5; s.Parent=b
     local function uv() if gs() then b.BackgroundColor3=FLOAT_ON; s.Color=FLOAT_ON_S else b.BackgroundColor3=FLOAT_OFF; s.Color=FLOAT_OFF_S end end
+    makeDraggableWithSave(b)
     local db=false
     local function oc() if db then return end; db=true; ts(); uv(); task.wait(0.15); db=false end
     b.MouseButton1Click:Connect(oc); b.TouchTap:Connect(oc); uv()
@@ -1024,12 +1092,12 @@ end
 local safR=nil
 local dm1R=nil
 local function CreateSABtn()
-    local _,_,r=createStateFloat("SilentAim_Floating","SilentAimBtn","AIM",UDim2.new(0.82,-22,0.70,0),function() return _G_SilentAimSkill end,function() _G_SilentAimSkill=not _G_SilentAimSkill end)
+    local _,_,r=createStateFloat("SilentAim_Floating","RadicalAimBtn","AIM",UDim2.new(0.82,-22,0.70,0),function() return _G_SilentAimSkill end,function() _G_SilentAimSkill=not _G_SilentAimSkill end)
     safR=r
 end
 local function DestroySABtn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SilentAim_Floating" then g:Destroy() end end; safR=nil end
 local function CreateM1Btn()
-    local _,_,r=createStateFloat("DragonM1_Floating","DragonM1Btn","M1",UDim2.new(0.82,-22,0.78,0),function() return _G_DragonGunM1 end,function() _G_DragonGunM1=not _G_DragonGunM1 end)
+    local _,_,r=createStateFloat("DragonM1_Floating","RadicalM1Btn","M1",UDim2.new(0.82,-22,0.78,0),function() return _G_DragonGunM1 end,function() _G_DragonGunM1=not _G_DragonGunM1 end)
     dm1R=r
 end
 local function DestroyM1Btn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="DragonM1_Floating" then g:Destroy() end end; dm1R=nil end
@@ -1318,6 +1386,15 @@ if settingPage then
         for _,fn in ipairs(toggleRefreshList) do pcall(fn) end
         rb.Text="Reseteado!"; rb.BackgroundColor3=Color3.fromRGB(0,150,60)
         task.wait(1.5); rb.Text="Reset Config"; rb.BackgroundColor3=Color3.fromRGB(180,40,40)
+    end)
+    local rpb=Instance.new("TextButton",ss)
+    rpb.Size=UDim2.new(1,-8,0,32); rpb.Position=UDim2.new(0,4,0,232); rpb.BackgroundColor3=Color3.fromRGB(120,80,180); rpb.Text="Reset Posiciones Flotantes"; rpb.TextColor3=Color3.fromRGB(255,255,255); rpb.Font=Enum.Font.GothamBold; rpb.TextSize=10; rpb.BorderSizePixel=0; rpb.ZIndex=3
+    Instance.new("UICorner",rpb).CornerRadius=UDim.new(0,6)
+    rpb.MouseButton1Click:Connect(function()
+        if _delfile_p then pcall(function() if _isfile_p and _isfile_p(POS_FILE) then _delfile_p(POS_FILE) end end) end
+        FloatPositions={}
+        rpb.Text="Reseteado!"; rpb.BackgroundColor3=Color3.fromRGB(0,150,60)
+        task.wait(1.5); rpb.Text="Reset Posiciones Flotantes"; rpb.BackgroundColor3=Color3.fromRGB(120,80,180)
     end)
 end
 print("RADICAL HUB: Cargado completo.")
