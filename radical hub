@@ -263,18 +263,28 @@ local function removeFakeHeadless()
         if fa then fa.Transparency=0 end
     end
 end
-local LAG_KW={"draco","control","room"}
+local LAG_KW={"aura","draco","dragon","dracos","v4","racial","effect","effects","domain","awaken","awakening"}
+local EFFECT_CLASSES={"ParticleEmitter","Trail","Beam","Fire","Smoke","Sparkles","PointLight","SpotLight","SurfaceLight"}
 local function isLag(o)
     if not o then return false end
     local n=string.lower(o.Name)
     for _,k in ipairs(LAG_KW) do if string.find(n,k,1,true) then return true end end
     return false
 end
+local function isAuraEffect(o)
+    if not o then return false end
+    for _,c in ipairs(EFFECT_CLASSES) do
+        if o:IsA(c) then
+            if isLag(o) then return true end
+        end
+    end
+    return false
+end
 local function cleanFF(c)
     if not c then return end
     for _,d in pairs(c:GetDescendants()) do
-        if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") or d:IsA("Highlight") then
-            if isLag(d) or isLag(d.Parent) then pcall(function() d.Enabled=false end) end
+        if isAuraEffect(d) or (d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") or d:IsA("Highlight")) and (isLag(d) or isLag(d.Parent)) then
+            pcall(function() d.Enabled=false end)
         end
     end
 end
@@ -603,8 +613,7 @@ local function equipPortal()
     local h=c:FindFirstChildOfClass("Humanoid")
     if not h then return nil end
     local tl=c:FindFirstChild("Portal-Portal") or c:FindFirstChild("Portal Fruit") or c:FindFirstChild("Portal") or c:FindFirstChild("Door")
-    if not tl then
-        local bp=player:FindFirstChild("Backpack")
+    if not tl then        local bp=player:FindFirstChild("Backpack")
         if bp then
             for _,t in ipairs(bp:GetChildren()) do
                 local n=string.lower(t.Name)
