@@ -28,21 +28,17 @@ local function buildLockUnix()
     days=days+yrs*365+ld
     return (days*86400)+(20*3600)
 end
-local LOCK_UNIX = buildLockUnix()
+local LOCK_UNIX=buildLockUnix()
 local function isAdmin()
-    for _, id in ipairs(ADMIN_IDS) do if game.Players.LocalPlayer.UserId==id then return true end end
+    for _,id in ipairs(ADMIN_IDS) do if game.Players.LocalPlayer.UserId==id then return true end end
     return false
 end
-if not (isAdmin() or getRealUnixTime() >= LOCK_UNIX) then
-    local pg = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
-    local g = Instance.new("ScreenGui", pg)
-    g.Name="RadicalHub_Locked"
-    g.ResetOnSpawn=false
+if not (isAdmin() or getRealUnixTime()>=LOCK_UNIX) then
+    local pg=game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local g=Instance.new("ScreenGui",pg)
+    g.Name="RadicalHub_Locked"; g.ResetOnSpawn=false
     local f=Instance.new("Frame",g)
-    f.Size=UDim2.new(0,400,0,200)
-    f.Position=UDim2.new(0.5,-200,0.5,-100)
-    f.BackgroundColor3=Color3.fromRGB(10,10,15)
-    f.BorderSizePixel=0
+    f.Size=UDim2.new(0,400,0,200); f.Position=UDim2.new(0.5,-200,0.5,-100); f.BackgroundColor3=Color3.fromRGB(10,10,15); f.BorderSizePixel=0
     Instance.new("UICorner",f).CornerRadius=UDim.new(0,12)
     local s=Instance.new("UIStroke",f); s.Color=Color3.fromRGB(255,60,60); s.Thickness=2
     local t=Instance.new("TextLabel",f); t.Size=UDim2.new(1,-20,0,30); t.Position=UDim2.new(0,10,0,15); t.BackgroundTransparency=1; t.Text="RADICAL HUB BLOQUEADO"; t.TextColor3=Color3.fromRGB(255,80,80); t.Font=Enum.Font.GothamBold; t.TextSize=16
@@ -98,6 +94,7 @@ local currentSilentAimTarget=nil
 local maxRange=2500
 local SilentAimPlayersEnabled=false
 local SilentAimNPCsEnabled=false
+local BlacklistedPlayers={}
 local FastFlag={Enabled=false}
 local CamLock={PlayerEnabled=false,NpcEnabled=false,TargetPlayer="Nearest",LockedPlayer=nil,LockedNpc=nil,Smoothness=0.4}
 local ESP={Enabled=false,ShowName=true,ShowLevel=true,ShowBounty=true,ShowFruit=true,ShowDistance=true,ShowHP=true,ShowHighlight=false,ShowWarning=true,ShowPvPStatus=true,TextSize=12}
@@ -161,9 +158,7 @@ local function applyFakeKorblox()
         rl.Transparency=1
         for _,cc in pairs(rl:GetChildren()) do if cc:IsA("SpecialMesh") then cc:Destroy() end end
         local m=Instance.new("SpecialMesh")
-        m.MeshId="rbxassetid://139607718"
-        m.TextureId="rbxassetid://139607673"
-        m.Parent=rl
+        m.MeshId="rbxassetid://139607718"; m.TextureId="rbxassetid://139607673"; m.Parent=rl
     end
     if rl2 then rl2.Transparency=1 end
     if rf then rf.Transparency=1 end
@@ -350,31 +345,12 @@ local function createESP(tp)
     if not hd then return end
     local team,col=getTeamInfo(tp)
     local bb=Instance.new("BillboardGui")
-    bb.Name="RadicalESP_BB"
-    bb.Adornee=hd
-    bb.Size=UDim2.new(0,200,0,85)
-    bb.StudsOffset=Vector3.new(0,3,0)
-    bb.AlwaysOnTop=true
-    bb.Parent=hd
+    bb.Name="RadicalESP_BB"; bb.Adornee=hd; bb.Size=UDim2.new(0,200,0,85); bb.StudsOffset=Vector3.new(0,3,0); bb.AlwaysOnTop=true; bb.Parent=hd
     local tx=Instance.new("TextLabel")
-    tx.Size=UDim2.new(1,0,1,0)
-    tx.BackgroundTransparency=1
-    tx.TextSize=ESP.TextSize
-    tx.RichText=true
-    tx.Font=Enum.Font.SourceSansBold
-    tx.TextStrokeTransparency=0
-    tx.TextColor3=col
-    tx.Parent=bb
+    tx.Size=UDim2.new(1,0,1,0); tx.BackgroundTransparency=1; tx.TextSize=ESP.TextSize; tx.RichText=true; tx.Font=Enum.Font.SourceSansBold; tx.TextStrokeTransparency=0; tx.TextColor3=col; tx.Parent=bb
     local hl=nil
     if ESP.ShowHighlight then
-        hl=Instance.new("Highlight")
-        hl.Name="ESP_HL"
-        hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-        hl.FillColor=col
-        hl.FillTransparency=0.5
-        hl.OutlineColor=col
-        hl.OutlineTransparency=0
-        hl.Parent=c
+        hl=Instance.new("Highlight"); hl.Name="ESP_HL"; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.FillColor=col; hl.FillTransparency=0.5; hl.OutlineColor=col; hl.OutlineTransparency=0; hl.Parent=c
     end
     espObjects[tp]={gui=bb,label=tx,char=c,highlight=hl}
 end
@@ -403,9 +379,7 @@ local function updateESP()
             local d=espObjects[tp]
             if c and hd then
                 if not d or d.char~=c or not d.gui.Parent then
-                    removeESP(tp)
-                    createESP(tp)
-                    d=espObjects[tp]
+                    removeESP(tp); createESP(tp); d=espObjects[tp]
                 end
                 if d then
                     local h=c:FindFirstChildOfClass("Humanoid")
@@ -437,18 +411,9 @@ local function updateESP()
                         d.label.Text=table.concat(parts)
                         if ESP.ShowHighlight then
                             if not d.highlight or not d.highlight.Parent then
-                                local hl=Instance.new("Highlight")
-                                hl.Name="ESP_HL"
-                                hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
-                                hl.FillColor=pd.color
-                                hl.FillTransparency=0.5
-                                hl.OutlineColor=pd.color
-                                hl.OutlineTransparency=0
-                                hl.Parent=c
-                                d.highlight=hl
+                                local hl=Instance.new("Highlight"); hl.Name="ESP_HL"; hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop; hl.FillColor=pd.color; hl.FillTransparency=0.5; hl.OutlineColor=pd.color; hl.OutlineTransparency=0; hl.Parent=c; d.highlight=hl
                             else
-                                d.highlight.FillColor=pd.color
-                                d.highlight.OutlineColor=pd.color
+                                d.highlight.FillColor=pd.color; d.highlight.OutlineColor=pd.color
                             end
                         else
                             if d.highlight then d.highlight:Destroy(); d.highlight=nil end
@@ -500,9 +465,7 @@ local function performExtSoru(tp)
     local fd=(tp-cp).Magnitude
     local cf=ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("CommF_")
     if fd<=950 then
-        pcall(function()
-            if cf then cf:InvokeServer("Flashstep",tp) else hr.CFrame=CFrame.new(tp) end
-        end)
+        pcall(function() if cf then cf:InvokeServer("Flashstep",tp) else hr.CFrame=CFrame.new(tp) end end)
         return
     end
     local st=math.ceil(fd/900)
@@ -510,9 +473,7 @@ local function performExtSoru(tp)
     for i=1,st do
         local nd=math.min(i*900,fd)
         local np=cp+(dr*nd)
-        pcall(function()
-            if cf then cf:InvokeServer("Flashstep",np) else hr.CFrame=CFrame.new(np) end
-        end)
+        pcall(function() if cf then cf:InvokeServer("Flashstep",np) else hr.CFrame=CFrame.new(np) end end)
         task.wait(0.015)
     end
 end
@@ -530,8 +491,7 @@ local SoruMouse=player:GetMouse()
 do
     local ok,mt=pcall(getrawmetatable,game)
     if ok and mt then
-        local oi=mt.__index
-        local on=mt.__namecall
+        local oi=mt.__index; local on=mt.__namecall
         local function ic() if checkcaller then return checkcaller() end return false end
         local sc=pcall(setreadonly,mt,false)
         if sc then
@@ -587,9 +547,7 @@ local function equipPortal()
         if bp then
             for _,t in ipairs(bp:GetChildren()) do
                 local n=string.lower(t.Name)
-                if string.find(n,"portal") or string.find(n,"door") then
-                    h:EquipTool(t); tl=t; task.wait(0.1); break
-                end
+                if string.find(n,"portal") or string.find(n,"door") then h:EquipTool(t); tl=t; task.wait(0.1); break end
             end
         end
     end
@@ -612,6 +570,122 @@ local function monitorPortal(c)
 end
 player.CharacterAdded:Connect(monitorPortal)
 if player.Character then monitorPortal(player.Character) end
+-- SILENT AIM (Sacred AHK version)
+_G_SilentAimFOV = 150
+_G_SilentAimShowFOV = false
+_G_SilentAimPart = "HumanoidRootPart"
+_G_SilentAimShowLine = false
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible=false; FOVCircle.Color=Color3.fromRGB(255,0,0); FOVCircle.Radius=_G_SilentAimFOV; FOVCircle.Thickness=2; FOVCircle.Filled=false
+local LockLine = Drawing.new("Line")
+LockLine.Thickness=2; LockLine.Color=Color3.fromRGB(255,0,0); LockLine.Transparency=1; LockLine.Visible=false
+local function IsSilentAimAlly(p)
+    local main=player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("Main")
+    local frame=main and main:FindFirstChild("Allies") and main.Allies:FindFirstChild("Container") and main.Allies.Container:FindFirstChild("Allies") and main.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and main.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
+    if not frame then return false end
+    return frame:FindFirstChild(p.Name)~=nil
+end
+local function IsSilentAimEnemy(p)
+    if not p or p==player then return false end
+    if IsSilentAimAlly(p) then return false end
+    local mt,tt=player.Team,p.Team
+    if mt and tt and mt.Name=="Marines" and tt.Name=="Marines" then return false end
+    return true
+end
+local function GetSilentAimOrigin()
+    local cam=workspace.CurrentCamera
+    if not cam then return Vector2.new(0,0) end
+    local v=cam.ViewportSize
+    return Vector2.new(v.X/2,v.Y/2)
+end
+local function GetClosestTargetToCenter()
+    local mc=player.Character
+    local mh=mc and mc:FindFirstChild("HumanoidRootPart")
+    if not mh then return nil end
+    local cam=workspace.CurrentCamera
+    if not cam then return nil end
+    local sc=Vector2.new(cam.ViewportSize.X/2,cam.ViewportSize.Y/2)
+    local fr=_G_SilentAimFOV or 150
+    local md=maxRange or 2500
+    if _G_SilentAimSelectedPlayer and _G_SilentAimSelectedPlayer~="" and _G_SilentAimSelectedPlayer~="Nearest" then
+        local tp=Players:FindFirstChild(_G_SilentAimSelectedPlayer)
+        if tp and tp~=player and tp.Character and not BlacklistedPlayers[tp.Name] then
+            if not _G_SilentAimTeamCheck or IsSilentAimEnemy(tp) then
+                local h=tp.Character:FindFirstChildOfClass("Humanoid")
+                local hr=tp.Character:FindFirstChild("HumanoidRootPart")
+                if h and h.Health>0 and hr then
+                    local wd=(hr.Position-mh.Position).Magnitude
+                    if wd<=md then
+                        local sp,os=cam:WorldToViewportPoint(hr.Position)
+                        local fd=(Vector2.new(sp.X,sp.Y)-sc).Magnitude
+                        if os and fd<=fr then return tp.Character:FindFirstChild(_G_SilentAimPart) or hr end
+                    end
+                end
+            end
+        end
+    end
+    local cl,sd=nil,md
+    local function cn(ch)
+        if not ch then return end
+        local p=Players:GetPlayerFromCharacter(ch)
+        if p and BlacklistedPlayers[p.Name] then return end
+        local h=ch:FindFirstChildOfClass("Humanoid")
+        if not h or h.Health<=0 then return end
+        local pt=ch:FindFirstChild(_G_SilentAimPart) or ch:FindFirstChild("HumanoidRootPart")
+        if not pt then return end
+        local wd=(pt.Position-mh.Position).Magnitude
+        if wd<sd then sd=wd; cl=pt end
+    end
+    if _G_SilentAimTargetPlayers or SilentAimPlayersEnabled then
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p~=player and not BlacklistedPlayers[p.Name] then
+                if not _G_SilentAimTeamCheck or IsSilentAimEnemy(p) then cn(p.Character) end
+            end
+        end
+    end
+    if (_G_SilentAimTargetMobs or SilentAimNPCsEnabled) and workspace:FindFirstChild("Enemies") then
+        for _,e in ipairs(workspace.Enemies:GetChildren()) do cn(e) end
+    end
+    return cl
+end
+local MouseModuleInstance=ReplicatedStorage:FindFirstChild("Mouse")
+local MouseModule=nil
+if MouseModuleInstance then pcall(function() MouseModule=require(MouseModuleInstance) end) end
+if MouseModule and typeof(MouseModule)=="table" then
+    pcall(function()
+        local rs={Hit=rawget(MouseModule,"Hit"),Target=rawget(MouseModule,"Target")}
+        local mmt=getrawmetatable(MouseModule)
+        if mmt then setreadonly(mmt,false) else mmt={}; setmetatable(MouseModule,mmt) end
+        rawset(MouseModule,"Hit",nil); rawset(MouseModule,"Target",nil)
+        mmt.__index=function(self,key)
+            if key=="Hit" then
+                if _G_SilentAimSkill and currentSilentAimTarget then return CFrame.new(currentSilentAimTarget.Position) end
+                return rs.Hit
+            elseif key=="Target" then
+                if _G_SilentAimSkill and currentSilentAimTarget then return currentSilentAimTarget end
+                return rs.Target
+            end
+            return nil
+        end
+        mmt.__newindex=function(self,key,value)
+            if key=="Hit" or key=="Target" then rs[key]=value else rawset(self,key,value) end
+        end
+        setreadonly(mmt,true)
+    end)
+end
+RunService.RenderStepped:Connect(function()
+    if FOVCircle then FOVCircle.Visible=_G_SilentAimShowFOV==true; FOVCircle.Radius=_G_SilentAimFOV or 150; FOVCircle.Position=GetSilentAimOrigin() end
+    if _G_SilentAimSkill then currentSilentAimTarget=GetClosestTargetToCenter() else currentSilentAimTarget=nil end
+    if LockLine then
+        if _G_SilentAimShowLine and currentSilentAimTarget then
+            local cam=workspace.CurrentCamera
+            local pos,os=cam:WorldToViewportPoint(currentSilentAimTarget.Position)
+            if os then local p=GetSilentAimOrigin(); LockLine.Visible=true; LockLine.From=p; LockLine.To=Vector2.new(pos.X,pos.Y)
+            else LockLine.Visible=false end
+        else LockLine.Visible=false end
+    end
+end)
+_G_SilentAimSelectedPlayer = ""
 local DragonModules=ReplicatedStorage:WaitForChild("Modules")
 local DragonNet=DragonModules:WaitForChild("Net")
 local ShootGunEvent=DragonNet:WaitForChild("RE/ShootGunEvent")
@@ -632,46 +706,26 @@ local function GetNV()
     if not uv then return 0,0 end
     if uv[VI.v21]~=727595 then
         for i,v in pairs(uv) do
-            if v==727595 then
-                local o=i-15
-                VI.v21=i; VI.v22=13+o; VI.v23=16+o; VI.v24=17+o; VI.v26=12+o; VI.v25=14+o; VI.v27=18+o
-                break
-            end
+            if v==727595 then local o=i-15; VI.v21=i; VI.v22=13+o; VI.v23=16+o; VI.v24=17+o; VI.v26=12+o; VI.v25=14+o; VI.v27=18+o; break end
         end
     end
-    local v1=gu(ShootFn,VI.v21)
-    local v2=gu(ShootFn,VI.v22)
-    local v3=gu(ShootFn,VI.v23)
-    local v4=gu(ShootFn,VI.v24)
-    local v5=gu(ShootFn,VI.v25)
-    local v6=gu(ShootFn,VI.v26)
-    local v7=gu(ShootFn,VI.v27)
-    if not (v1 and v2 and v3 and v4 and v5 and v6 and v7) then return 0,0 end    local v8=v6*v2
-    local v9=(v5*v2+v6*v1)%v3
-    v9=(v9*v3+v8)%v4
-    v5=math.floor(v9/v3)
-    v6=v9-v5*v3
-    v7=v7+1
-    su(ShootFn,VI.v25,v5)
-    su(ShootFn,VI.v26,v6)
-    su(ShootFn,VI.v27,v7)
+    local v1=gu(ShootFn,VI.v21); local v2=gu(ShootFn,VI.v22); local v3=gu(ShootFn,VI.v23); local v4=gu(ShootFn,VI.v24); local v5=gu(ShootFn,VI.v25); local v6=gu(ShootFn,VI.v26); local v7=gu(ShootFn,VI.v27)
+    if not (v1 and v2 and v3 and v4 and v5 and v6 and v7) then return 0,0 end
+    local v8=v6*v2; local v9=(v5*v2+v6*v1)%v3; v9=(v9*v3+v8)%v4; v5=math.floor(v9/v3); v6=v9-v5*v3; v7=v7+1
+    su(ShootFn,VI.v25,v5); su(ShootFn,VI.v26,v6); su(ShootFn,VI.v27,v7)
     return math.floor(v9/v4*16777215),v7
 end
 local function GetCDT()
-    local c=player.Character
-    local r=c and c:FindFirstChild("HumanoidRootPart")
+    local c=player.Character; local r=c and c:FindFirstChild("HumanoidRootPart")
     if not r then return nil,nil end
     local mp=r.Position
     local cp,ch,cd=nil,nil,math.huge
     if _G_AttackPlayers then
         for _,p in pairs(Players:GetPlayers()) do
             if p~=player and p.Character then
-                local h=p.Character:FindFirstChildOfClass("Humanoid")
-                local rr=p.Character:FindFirstChild("HumanoidRootPart")
-                local hd=p.Character:FindFirstChild("Head")
+                local h=p.Character:FindFirstChildOfClass("Humanoid"); local rr=p.Character:FindFirstChild("HumanoidRootPart"); local hd=p.Character:FindFirstChild("Head")
                 if h and h.Health>0 and (rr or hd) then
-                    local pt=hd or rr
-                    local d=(pt.Position-mp).Magnitude
+                    local pt=hd or rr; local d=(pt.Position-mp).Magnitude
                     if d<cd then cd=d; cp=pt; ch=h end
                 end
             end
@@ -683,12 +737,9 @@ local function GetCDT()
         local en=workspace:FindFirstChild("Enemies")
         if en then
             for _,e in pairs(en:GetChildren()) do
-                local h=e:FindFirstChildOfClass("Humanoid")
-                local rr=e:FindFirstChild("HumanoidRootPart")
-                local hd=e:FindFirstChild("Head")
+                local h=e:FindFirstChildOfClass("Humanoid"); local rr=e:FindFirstChild("HumanoidRootPart"); local hd=e:FindFirstChild("Head")
                 if h and h.Health>0 and (rr or hd) then
-                    local pt=hd or rr
-                    local d=(pt.Position-mp).Magnitude
+                    local pt=hd or rr; local d=(pt.Position-mp).Magnitude
                     if d<cn3 then cn3=d; cn=pt; cn2=h end
                 end
             end
@@ -704,10 +755,7 @@ local function FireGun(tp)
     if not tl then return end
     local code,count=GetNV()
     if code~=0 then pcall(function() Validator2:FireServer(code,count) end) end
-    pcall(function()
-        tl:SetAttribute("LocalOverheat",0)
-        tl:SetAttribute("LocalTotalShots",(tl:GetAttribute("LocalTotalShots") or 0)+1)
-    end)
+    pcall(function() tl:SetAttribute("LocalOverheat",0); tl:SetAttribute("LocalTotalShots",(tl:GetAttribute("LocalTotalShots") or 0)+1) end)
     pcall(function() ShootGunEvent:FireServer(tp.Position,{tp}) end)
     local rh=Net and Net:FindFirstChild("RE/RegisterHit")
     if rh then
@@ -736,15 +784,11 @@ task.spawn(function()
     while task.wait(0.03) do
         if _G_GhostAttack then
             pcall(function()
-                local c=player.Character
-                if not c then return end
-                local tl=c:FindFirstChildOfClass("Tool")
-                if not tl then return end
+                local c=player.Character; if not c then return end
+                local tl=c:FindFirstChildOfClass("Tool"); if not tl then return end
                 if string.find(string.lower(tl.Name),"portal") then return end
-                local ra=Net and Net:FindFirstChild("RE/RegisterAttack")
-                if ra then ra:FireServer(0) end
-                local mr=c:FindFirstChild("HumanoidRootPart")
-                if not mr then return end
+                local ra=Net and Net:FindFirstChild("RE/RegisterAttack"); if ra then ra:FireServer(0) end
+                local mr=c:FindFirstChild("HumanoidRootPart"); if not mr then return end
                 local cl,sh=nil,60
                 local en=workspace:FindFirstChild("Enemies")
                 if en then
@@ -752,17 +796,13 @@ task.spawn(function()
                         local h=e:FindFirstChildOfClass("Humanoid")
                         if h and h.Health>0 then
                             local r=e:FindFirstChild("HumanoidRootPart") or e:FindFirstChild("Head")
-                            if r then
-                                local d=(r.Position-mr.Position).Magnitude
-                                if d<sh then sh=d; cl=e end
-                            end
+                            if r then local d=(r.Position-mr.Position).Magnitude; if d<sh then sh=d; cl=e end end
                         end
                     end
                 end
                 for _,p in pairs(Players:GetPlayers()) do
                     if p~=player and p.Character then
-                        local h=p.Character:FindFirstChildOfClass("Humanoid")
-                        local r=p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("Head")
+                        local h=p.Character:FindFirstChildOfClass("Humanoid"); local r=p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("Head")
                         if h and h.Health>0 and r then
                             local ia=false
                             if player.Team and p.Team and player.Team==p.Team then ia=true end
@@ -771,10 +811,7 @@ task.spawn(function()
                                 local fr=mn and mn:FindFirstChild("Allies") and mn.Allies:FindFirstChild("Container") and mn.Allies.Container:FindFirstChild("Allies") and mn.Allies.Container.Allies:FindFirstChild("ScrollingFrame") and mn.Allies.Container.Allies.ScrollingFrame:FindFirstChild("Frame")
                                 if fr and fr:FindFirstChild(p.Name) then ia=true end
                             end)
-                            if not ia then
-                                local d=(r.Position-mr.Position).Magnitude
-                                if d<sh then sh=d; cl=p.Character end
-                            end
+                            if not ia then local d=(r.Position-mr.Position).Magnitude; if d<sh then sh=d; cl=p.Character end end
                         end
                     end
                 end
@@ -791,46 +828,31 @@ task.spawn(function()
 end)
 task.spawn(function() while task.wait(0.5) do if _G_AutoKen then pcall(function() commE:FireServer("Ken",true) end) end end end)
 local function executeJump()
-    local c=player.Character
-    if not c then return end
-    local hr=c:FindFirstChild("HumanoidRootPart")
-    local h=c:FindFirstChildOfClass("Humanoid")
+    local c=player.Character; if not c then return end
+    local hr=c:FindFirstChild("HumanoidRootPart"); local h=c:FindFirstChildOfClass("Humanoid")
     if not hr or not h then return end
     pcall(function()
         for _,v in pairs(hr:GetChildren()) do if v:IsA("BodyVelocity") and v.Name=="RadicalJump" then v:Destroy() end end
         local bv=Instance.new("BodyVelocity")
-        bv.Name="RadicalJump"
-        bv.MaxForce=Vector3.new(0,50000,0)
-        bv.Velocity=Vector3.new(0,1000,0)
-        bv.Parent=hr
+        bv.Name="RadicalJump"; bv.MaxForce=Vector3.new(0,50000,0); bv.Velocity=Vector3.new(0,1000,0); bv.Parent=hr
         h:ChangeState(Enum.HumanoidStateType.Jumping)
         task.delay(0.05,function() pcall(function() if h and h.Parent then h:ChangeState(Enum.HumanoidStateType.Freefall) end end) end)
         task.delay(0.15,function() if bv then bv:Destroy() end end)
     end)
 end
 local function executeSang()
-    local c=player.Character
-    local hr=c and c:FindFirstChild("HumanoidRootPart")
-    local h=c and c:FindFirstChild("Humanoid")
+    local c=player.Character; local hr=c and c:FindFirstChild("HumanoidRootPart"); local h=c and c:FindFirstChild("Humanoid")
     if not hr or not h then return end
     local dr=camera.CFrame.LookVector
     h.PlatformStand=true
     local a=Instance.new("Attachment",hr)
     local lv=Instance.new("LinearVelocity",hr)
-    lv.MaxForce=9999999
-    lv.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector
-    lv.VectorVelocity=dr*500
-    lv.Attachment0=a
-    task.delay(0.30,function()
-        if lv then lv:Destroy() end
-        if a then a:Destroy() end
-        if h then h.PlatformStand=false end
-    end)
+    lv.MaxForce=9999999; lv.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector; lv.VectorVelocity=dr*500; lv.Attachment0=a
+    task.delay(0.30,function() if lv then lv:Destroy() end; if a then a:Destroy() end; if h then h.PlatformStand=false end end)
 end
 local function CreateJumpBtn()
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SuperJump_Floating" then g:Destroy() end end
-    local fg=Instance.new("ScreenGui")
-    fg.Name="SuperJump_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
+    local fg=Instance.new("ScreenGui"); fg.Name="SuperJump_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
     b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.5,0); b.BackgroundColor3=Color3.fromRGB(0,0,0); b.Text="JUMP"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
@@ -840,8 +862,7 @@ end
 local function DestroyJumpBtn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SuperJump_Floating" then g:Destroy() end end end
 local function CreateSangBtn()
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SanguineZ_Floating" then g:Destroy() end end
-    local fg=Instance.new("ScreenGui")
-    fg.Name="SanguineZ_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
+    local fg=Instance.new("ScreenGui"); fg.Name="SanguineZ_Floating"; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
     b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,0.6,0); b.BackgroundColor3=Color3.fromRGB(180,0,0); b.Text="SANG"; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=12; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
@@ -854,37 +875,23 @@ local BoostConfig={
     DTalonAuto={Name="DTalon Auto",Color=Color3.fromRGB(255,100,50),Enabled=false,Visible=false,Power=500,Duration=0.30,MinCharge=1.0,AnimIDs={"18839089313"},AnimName="DTalon_ZCharge",SubWindow=nil,FloatGui=nil,FloatY=0.75}
 }
 local function doConfigBoost(cfg)
-    local c=player.Character
-    if not c then return end
-    local hr=c:FindFirstChild("HumanoidRootPart")
-    local h=c:FindFirstChildOfClass("Humanoid")
+    local c=player.Character; if not c then return end
+    local hr=c:FindFirstChild("HumanoidRootPart"); local h=c:FindFirstChildOfClass("Humanoid")
     if not hr or not h then return end
-    local dr=camera.CFrame.LookVector
-    h.PlatformStand=true
-    local a=Instance.new("Attachment",hr)
-    local lv=Instance.new("LinearVelocity",hr)
-    lv.MaxForce=9999999
-    lv.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector
-    lv.VectorVelocity=dr*cfg.Power
-    lv.Attachment0=a
-    task.delay(cfg.Duration,function()
-        if lv then lv:Destroy() end
-        if a then a:Destroy() end
-        if h then h.PlatformStand=false end
-    end)
+    local dr=camera.CFrame.LookVector; h.PlatformStand=true
+    local a=Instance.new("Attachment",hr); local lv=Instance.new("LinearVelocity",hr)
+    lv.MaxForce=9999999; lv.VelocityConstraintMode=Enum.VelocityConstraintMode.Vector; lv.VectorVelocity=dr*cfg.Power; lv.Attachment0=a
+    task.delay(cfg.Duration,function() if lv then lv:Destroy() end; if a then a:Destroy() end; if h then h.PlatformStand=false end end)
 end
 local boostConns={}
 local function hookBoost(k,cfg)
     if boostConns[k] then boostConns[k]:Disconnect(); boostConns[k]=nil end
     if boostConns[k.."_res"] then boostConns[k.."_res"]:Disconnect(); boostConns[k.."_res"]=nil end
     local function attach(c)
-        local h=c:WaitForChild("Humanoid",5)
-        if not h then return end
+        local h=c:WaitForChild("Humanoid",5); if not h then return end
         local cn=h.AnimationPlayed:Connect(function(t)
             if not cfg.Enabled then return end
-            local a=t.Animation
-            local id=a and tostring(a.AnimationId):match("%d+")
-            local n=a and a.Name or ""
+            local a=t.Animation; local id=a and tostring(a.AnimationId):match("%d+"); local n=a and a.Name or ""
             local m=false
             for _,x in ipairs(cfg.AnimIDs) do if id==x then m=true; break end end
             if cfg.AnimName~="" and n==cfg.AnimName then m=true end
@@ -906,27 +913,20 @@ local function unhookBoost(k)
 end
 local function createBoostFloat(k,cfg,y)
     for _,g in pairs(playerGui:GetChildren()) do if g.Name=="BoostFloat_"..k then g:Destroy() end end
-    local fg=Instance.new("ScreenGui")
-    fg.Name="BoostFloat_"..k; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
+    local fg=Instance.new("ScreenGui"); fg.Name="BoostFloat_"..k; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
     b.Name="BoostBtn_"..k; b.Size=UDim2.new(0,55,0,40); b.Position=UDim2.new(0.85,0,y,0); b.BackgroundColor3=Color3.fromRGB(80,80,80); b.Text=cfg.Name:gsub(" Auto",""); b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=9; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Color=Color3.fromRGB(120,120,120); s.Thickness=1.5
     local oc=(k=="SanguineAuto") and Color3.fromRGB(180,60,255) or Color3.fromRGB(255,100,50)
-    local function uv()
-        if cfg.Enabled then b.BackgroundColor3=oc; s.Color=oc
-        else b.BackgroundColor3=Color3.fromRGB(80,80,80); s.Color=Color3.fromRGB(120,120,120) end
-    end
+    local function uv() if cfg.Enabled then b.BackgroundColor3=oc; s.Color=oc else b.BackgroundColor3=Color3.fromRGB(80,80,80); s.Color=Color3.fromRGB(120,120,120) end end
     uv()
     local db=false
     local function tg()
-        if db then return end
-        db=true
-        cfg.Enabled=not cfg.Enabled
-        uv()
+        if db then return end; db=true
+        cfg.Enabled=not cfg.Enabled; uv()
         if cfg.Enabled then hookBoost(k,cfg) else unhookBoost(k) end
-        task.wait(0.15)
-        db=false
+        task.wait(0.15); db=false
     end
     b.MouseButton1Down:Connect(tg); b.TouchTap:Connect(tg)
     cfg.FloatGui=fg
@@ -978,16 +978,8 @@ local function createToggle(parent,label,get,set,y)
     local function ut() if get() then b.BackgroundColor3=T.Success; b.Text="ON" else b.BackgroundColor3=Color3.fromRGB(50,50,60); b.Text="OFF" end end
     table.insert(toggleRefreshList,ut)
     local db=false
-    local function st()
-        if db then return end
-        db=true
-        set(not get())
-        ut()
-        task.wait(0.15)
-        db=false
-    end
-    b.MouseButton1Down:Connect(st); b.TouchTap:Connect(st)
-    ut()
+    local function st() if db then return end; db=true; set(not get()); ut(); task.wait(0.15); db=false end
+    b.MouseButton1Down:Connect(st); b.TouchTap:Connect(st); ut()
     return b
 end
 local function createToggleWithGear(parent,label,k,cfg,cb,y)
@@ -999,25 +991,12 @@ local function createToggleWithGear(parent,label,k,cfg,cb,y)
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,4)
     local function ut() if cfg.Visible then b.BackgroundColor3=T.Success; b.Text="ON" else b.BackgroundColor3=Color3.fromRGB(50,50,60); b.Text="OFF" end end
     local function tg()
-        cfg.Visible=not cfg.Visible
-        ut()
-        if cfg.Visible then
-            cfg.Enabled=false
-            createBoostFloat(k,cfg,cfg.FloatY or 0.65)
-        else
-            cfg.Enabled=false
-            unhookBoost(k)
-            if cfg.FloatGui then cfg.FloatGui:Destroy(); cfg.FloatGui=nil end
-        end
+        cfg.Visible=not cfg.Visible; ut()
+        if cfg.Visible then cfg.Enabled=false; createBoostFloat(k,cfg,cfg.FloatY or 0.65)
+        else cfg.Enabled=false; unhookBoost(k); if cfg.FloatGui then cfg.FloatGui:Destroy(); cfg.FloatGui=nil end end
     end
     local db=false
-    local function st()
-        if db then return end
-        db=true
-        tg()
-        task.wait(0.2)
-        db=false
-    end
+    local function st() if db then return end; db=true; tg(); task.wait(0.2); db=false end
     b.MouseButton1Down:Connect(st); b.TouchTap:Connect(st)
     g.MouseButton1Down:Connect(function() if cb then cb() end end)
     g.TouchTap:Connect(function() if cb then cb() end end)
@@ -1031,51 +1010,29 @@ local FLOAT_ON_S=Color3.fromRGB(0,255,100)
 local FLOAT_OFF_S=Color3.fromRGB(120,120,130)
 local function createStateFloat(gn,bn,txt,pos,gs,ts)
     for _,g in pairs(playerGui:GetChildren()) do if g.Name==gn then g:Destroy() end end
-    local fg=Instance.new("ScreenGui")
-    fg.Name=gn; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
+    local fg=Instance.new("ScreenGui"); fg.Name=gn; fg.ResetOnSpawn=false; fg.DisplayOrder=50; fg.IgnoreGuiInset=true; fg.Parent=playerGui
     local b=Instance.new("TextButton")
     b.Name=bn; b.Size=UDim2.new(0,55,0,40); b.Position=pos; b.Text=txt; b.TextColor3=Color3.fromRGB(255,255,255); b.TextSize=11; b.Font=Enum.Font.GothamBold; b.Active=true; b.Draggable=true; b.Parent=fg
     Instance.new("UICorner",b).CornerRadius=UDim.new(0,8)
     local s=Instance.new("UIStroke",b); s.Thickness=1.5; s.Parent=b
-    local function uv()
-        if gs() then b.BackgroundColor3=FLOAT_ON; s.Color=FLOAT_ON_S
-        else b.BackgroundColor3=FLOAT_OFF; s.Color=FLOAT_OFF_S end
-    end
+    local function uv() if gs() then b.BackgroundColor3=FLOAT_ON; s.Color=FLOAT_ON_S else b.BackgroundColor3=FLOAT_OFF; s.Color=FLOAT_OFF_S end end
     local db=false
-    local function oc()
-        if db then return end
-        db=true
-        ts()
-        uv()
-        task.wait(0.15)
-        db=false
-    end
-    b.MouseButton1Click:Connect(oc); b.TouchTap:Connect(oc)
-    uv()
+    local function oc() if db then return end; db=true; ts(); uv(); task.wait(0.15); db=false end
+    b.MouseButton1Click:Connect(oc); b.TouchTap:Connect(oc); uv()
     return fg,b,uv
 end
 local safR=nil
 local dm1R=nil
 local function CreateSABtn()
-    local _,_,r=createStateFloat("SilentAim_Floating","SilentAimBtn","AIM",UDim2.new(0.82,-22,0.70,0),
-        function() return _G_SilentAimSkill end,
-        function() _G_SilentAimSkill=not _G_SilentAimSkill end)
+    local _,_,r=createStateFloat("SilentAim_Floating","SilentAimBtn","AIM",UDim2.new(0.82,-22,0.70,0),function() return _G_SilentAimSkill end,function() _G_SilentAimSkill=not _G_SilentAimSkill end)
     safR=r
 end
-local function DestroySABtn()
-    for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SilentAim_Floating" then g:Destroy() end end
-    safR=nil
-end
+local function DestroySABtn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="SilentAim_Floating" then g:Destroy() end end; safR=nil end
 local function CreateM1Btn()
-    local _,_,r=createStateFloat("DragonM1_Floating","DragonM1Btn","M1",UDim2.new(0.82,-22,0.78,0),
-        function() return _G_DragonGunM1 end,
-        function() _G_DragonGunM1=not _G_DragonGunM1 end)
+    local _,_,r=createStateFloat("DragonM1_Floating","DragonM1Btn","M1",UDim2.new(0.82,-22,0.78,0),function() return _G_DragonGunM1 end,function() _G_DragonGunM1=not _G_DragonGunM1 end)
     dm1R=r
 end
-local function DestroyM1Btn()
-    for _,g in pairs(playerGui:GetChildren()) do if g.Name=="DragonM1_Floating" then g:Destroy() end end
-    dm1R=nil
-end
+local function DestroyM1Btn() for _,g in pairs(playerGui:GetChildren()) do if g.Name=="DragonM1_Floating" then g:Destroy() end end; dm1R=nil end
 task.spawn(function() while task.wait(0.3) do if safR then pcall(safR) end; if dm1R then pcall(dm1R) end end end)
 local homePage=UI.Pages["Home"]
 if homePage then
@@ -1120,20 +1077,14 @@ if mainPage then
     Instance.new("UICorner",wsP).CornerRadius=UDim.new(0,4)
     local function uw()
         local c=player.Character
-        if c and HUB_CONFIG.WalkSpeedEnabled then
-            local h=c:FindFirstChildOfClass("Humanoid")
-            if h then h.WalkSpeed=HUB_CONFIG.WalkSpeed end
-        end
+        if c and HUB_CONFIG.WalkSpeedEnabled then local h=c:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed=HUB_CONFIG.WalkSpeed end end
         wsV.Text=tostring(HUB_CONFIG.WalkSpeed)
     end
     wsT.MouseButton1Click:Connect(function()
         HUB_CONFIG.WalkSpeedEnabled=not HUB_CONFIG.WalkSpeedEnabled
         if HUB_CONFIG.WalkSpeedEnabled then wsT.BackgroundColor3=T.Success; wsT.Text="ON"; uw()
-        else
-            wsT.BackgroundColor3=Color3.fromRGB(50,50,60); wsT.Text="OFF"
-            local c=player.Character
-            if c then local h=c:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed=16 end end
-        end
+        else wsT.BackgroundColor3=Color3.fromRGB(50,50,60); wsT.Text="OFF"
+            local c=player.Character; if c then local h=c:FindFirstChildOfClass("Humanoid"); if h then h.WalkSpeed=16 end end end
     end)
     wsM.MouseButton1Click:Connect(function() HUB_CONFIG.WalkSpeed=math.max(16,HUB_CONFIG.WalkSpeed-5); uw() end)
     wsP.MouseButton1Click:Connect(function() HUB_CONFIG.WalkSpeed=math.min(200,HUB_CONFIG.WalkSpeed+5); uw() end)
@@ -1169,8 +1120,7 @@ if mainPage then
         local pl={"Nearest"}
         for _,p in ipairs(Players:GetPlayers()) do if p~=player then table.insert(pl,p.Name) end end
         local ci=table.find(pl,CamLock.TargetPlayer) or 1
-        CamLock.TargetPlayer=pl[(ci%#pl)+1]
-        tb.Text="Target: "..CamLock.TargetPlayer
+        CamLock.TargetPlayer=pl[(ci%#pl)+1]; tb.Text="Target: "..CamLock.TargetPlayer
     end)
     local sf=Instance.new("Frame",ms)
     sf.Size=UDim2.new(1,-8,0,24); sf.Position=UDim2.new(0,4,0,292); sf.BackgroundColor3=T.ButtonIdle; sf.BorderSizePixel=0; sf.ZIndex=3
@@ -1217,16 +1167,9 @@ if appPage then
     sep.Size=UDim2.new(1,0,0,1); sep.Position=UDim2.new(0,0,0,62); sep.BackgroundColor3=Color3.fromRGB(255,255,255); sep.BackgroundTransparency=0.5; sep.BorderSizePixel=0; sep.ZIndex=3
     local at=Instance.new("TextLabel",as)
     at.Size=UDim2.new(1,0,0,20); at.Position=UDim2.new(0,0,0,70); at.BackgroundTransparency=1; at.Text="AURAS VFX"; at.TextColor3=Color3.fromRGB(150,0,255); at.Font=Enum.Font.GothamBold; at.TextSize=10; at.TextXAlignment=Enum.TextXAlignment.Center; at.ZIndex=3
-    local ac={
-        {name="Inferno",color=Color3.fromRGB(255,80,0)},
-        {name="Electric",color=Color3.fromRGB(0,170,255)},
-        {name="DarkSpirit",color=Color3.fromRGB(150,0,255)},
-        {name="Toxic",color=Color3.fromRGB(0,255,80)},
-        {name="Frost",color=Color3.fromRGB(200,230,255)}
-    }
+    local ac={{name="Inferno",color=Color3.fromRGB(255,80,0)},{name="Electric",color=Color3.fromRGB(0,170,255)},{name="DarkSpirit",color=Color3.fromRGB(150,0,255)},{name="Toxic",color=Color3.fromRGB(0,255,80)},{name="Frost",color=Color3.fromRGB(200,230,255)}}
     for i,a in ipairs(ac) do
-        local r=math.floor((i-1)/2)
-        local c=(i-1)%2
+        local r=math.floor((i-1)/2); local c=(i-1)%2
         local b=Instance.new("TextButton",as)
         b.Size=UDim2.new(0.48,0,0,26); b.Position=UDim2.new(0.01+(c*0.5),0,0,100+(r*32)); b.BackgroundColor3=a.color; b.BackgroundTransparency=0.75; b.Text=a.name; b.TextColor3=a.color; b.Font=Enum.Font.GothamBold; b.TextSize=9; b.ZIndex=3
         Instance.new("UICorner",b).CornerRadius=UDim.new(0,6)
@@ -1234,24 +1177,17 @@ if appPage then
             if activeAura==a.name then
                 activeAura=nil
                 for _,o in pairs(auraObjects) do if o and o.Parent then o:Destroy() end end
-                auraObjects={}
-                b.BackgroundTransparency=0.75
+                auraObjects={}; b.BackgroundTransparency=0.75
             else
                 activeAura=a.name
                 for _,o in pairs(auraObjects) do if o and o.Parent then o:Destroy() end end
                 auraObjects={}
-                local ch=player.Character
-                local hr=ch and ch:FindFirstChild("HumanoidRootPart")
+                local ch=player.Character; local hr=ch and ch:FindFirstChild("HumanoidRootPart")
                 if hr then
                     local em=Instance.new("ParticleEmitter")
-                    em.Texture="rbxassetid://243098098"
-                    em.Color=ColorSequence.new(a.color,a.color)
+                    em.Texture="rbxassetid://243098098"; em.Color=ColorSequence.new(a.color,a.color)
                     em.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0.5),NumberSequenceKeypoint.new(0.5,2),NumberSequenceKeypoint.new(1,0)})
-                    em.Rate=100
-                    em.Speed=NumberRange.new(2,5)
-                    em.Lifetime=NumberRange.new(0.5,1.5)
-                    em.SpreadAngle=Vector2.new(30,30)
-                    em.Parent=hr
+                    em.Rate=100; em.Speed=NumberRange.new(2,5); em.Lifetime=NumberRange.new(0.5,1.5); em.SpreadAngle=Vector2.new(30,30); em.Parent=hr
                     table.insert(auraObjects,em)
                 end
                 b.BackgroundTransparency=0.3
@@ -1273,8 +1209,7 @@ if soruPage then
         local pl={"Nearest"}
         for _,p in ipairs(Players:GetPlayers()) do if p~=player then table.insert(pl,p.Name) end end
         local ci=table.find(pl,SelectedSoruTarget) or 1
-        SelectedSoruTarget=pl[(ci%#pl)+1]
-        tb.Text="Target: "..SelectedSoruTarget
+        SelectedSoruTarget=pl[(ci%#pl)+1]; tb.Text="Target: "..SelectedSoruTarget
     end)
     local df=Instance.new("Frame",ss)
     df.Size=UDim2.new(1,-8,0,24); df.Position=UDim2.new(0,4,0,122); df.BackgroundColor3=T.ButtonIdle; df.BorderSizePixel=0; df.ZIndex=3
@@ -1306,39 +1241,24 @@ if settingPage then
     Instance.new("UICorner",sb).CornerRadius=UDim.new(0,6)
     sb.MouseButton1Click:Connect(function()
         if not (writefile and isfile) then sb.Text="Sin soporte"; task.wait(1.5); sb.Text="Guardar Config"; return end
-        local data={
-            SilentAimSkill=_G_SilentAimSkill,SilentAimTargetPlayers=_G_SilentAimTargetPlayers,SilentAimTargetMobs=_G_SilentAimTargetMobs,
-            DragonGunM1=_G_DragonGunM1,GhostAttack=_G_GhostAttack,AutoKen=_G_AutoKen,AttackMobs=_G_AttackMobs,AttackPlayers=_G_AttackPlayers,
-            WalkSpeed=HUB_CONFIG.WalkSpeed,WalkSpeedEnabled=HUB_CONFIG.WalkSpeedEnabled,InfiniteJump=HUB_CONFIG.InfiniteJump,
-            AntiAFK=HUB_CONFIG.AntiAFK,DashEnabled=HUB_CONFIG.DashEnabled,DashDistance=HUB_CONFIG.DashDistance,
-            SuperJump=_G_SuperJumpActive,Sanguine=_G_SanguineActive,FakeKorblox=fakeKorbloxEnabled,FakeHeadless=fakeHeadlessEnabled,
-            SoruInfinito=SoruInfinitoEnabled,SoruAimbot=SoruAimbotEnabled,PortalSoru=PortalSoruEnabled,
-            SoruTarget=SelectedSoruTarget,SoruDist=soruMaxDist,Aura=activeAura,
-            CamP=CamLock.PlayerEnabled,CamN=CamLock.NpcEnabled,CamT=CamLock.TargetPlayer,CamS=CamLock.Smoothness,
-            ESPEn=ESP.Enabled,ESPN=ESP.ShowName,ESPL=ESP.ShowLevel,ESPB=ESP.ShowBounty,ESPF=ESP.ShowFruit,
-            ESPD=ESP.ShowDistance,ESPH=ESP.ShowHP,ESPX=ESP.ShowHighlight,ESPW=ESP.ShowWarning,ESPP=ESP.ShowPvPStatus,ESPS=ESP.TextSize,
-            FF=FastFlag.Enabled
-        }
+        local data={SilentAimSkill=_G_SilentAimSkill,SilentAimTargetPlayers=_G_SilentAimTargetPlayers,SilentAimTargetMobs=_G_SilentAimTargetMobs,DragonGunM1=_G_DragonGunM1,GhostAttack=_G_GhostAttack,AutoKen=_G_AutoKen,AttackMobs=_G_AttackMobs,AttackPlayers=_G_AttackPlayers,WalkSpeed=HUB_CONFIG.WalkSpeed,WalkSpeedEnabled=HUB_CONFIG.WalkSpeedEnabled,InfiniteJump=HUB_CONFIG.InfiniteJump,AntiAFK=HUB_CONFIG.AntiAFK,DashEnabled=HUB_CONFIG.DashEnabled,DashDistance=HUB_CONFIG.DashDistance,SuperJump=_G_SuperJumpActive,Sanguine=_G_SanguineActive,FakeKorblox=fakeKorbloxEnabled,FakeHeadless=fakeHeadlessEnabled,SoruInfinito=SoruInfinitoEnabled,SoruAimbot=SoruAimbotEnabled,PortalSoru=PortalSoruEnabled,SoruTarget=SelectedSoruTarget,SoruDist=soruMaxDist,Aura=activeAura,CamP=CamLock.PlayerEnabled,CamN=CamLock.NpcEnabled,CamT=CamLock.TargetPlayer,CamS=CamLock.Smoothness,ESPEn=ESP.Enabled,ESPN=ESP.ShowName,ESPL=ESP.ShowLevel,ESPB=ESP.ShowBounty,ESPF=ESP.ShowFruit,ESPD=ESP.ShowDistance,ESPH=ESP.ShowHP,ESPX=ESP.ShowHighlight,ESPW=ESP.ShowWarning,ESPP=ESP.ShowPvPStatus,ESPS=ESP.TextSize,FF=FastFlag.Enabled}
         local ok,enc=pcall(function() return HttpService:JSONEncode(data) end)
         if ok and enc then
             local w=pcall(function() writefile("RADICAL_Hub_Config.json",enc) end)
             if w then sb.Text="Guardado!"; sb.BackgroundColor3=Color3.fromRGB(0,150,60)
             else sb.Text="Error al escribir"; sb.BackgroundColor3=Color3.fromRGB(200,40,40) end
         else sb.Text="Error JSON"; sb.BackgroundColor3=Color3.fromRGB(200,40,40) end
-        task.wait(1.5)
-        sb.Text="Guardar Config"; sb.BackgroundColor3=Color3.fromRGB(0,130,200)
+        task.wait(1.5); sb.Text="Guardar Config"; sb.BackgroundColor3=Color3.fromRGB(0,130,200)
     end)
     local lb=Instance.new("TextButton",ss)
     lb.Size=UDim2.new(1,-8,0,32); lb.Position=UDim2.new(0,4,0,156); lb.BackgroundColor3=Color3.fromRGB(80,80,200); lb.Text="Cargar Config"; lb.TextColor3=Color3.fromRGB(255,255,255); lb.Font=Enum.Font.GothamBold; lb.TextSize=10; lb.BorderSizePixel=0; lb.ZIndex=3
     Instance.new("UICorner",lb).CornerRadius=UDim.new(0,6)
     lb.MouseButton1Click:Connect(function()
         if not (readfile and isfile) then lb.Text="Sin soporte"; task.wait(1.5); lb.Text="Cargar Config"; return end
-        local ex=false
-        pcall(function() ex=isfile("RADICAL_Hub_Config.json") end)
-        if not ex then lb.Text="Sin config guardada"; lb.BackgroundColor3=Color3.fromRGB(200,40,40); task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200); return end
-        local raw
-        pcall(function() raw=readfile("RADICAL_Hub_Config.json") end)
-        if not raw or raw=="" then lb.Text="Error al leer"; lb.BackgroundColor3=Color3.fromRGB(200,40,40); task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200); return end
+        local ex=false; pcall(function() ex=isfile("RADICAL_Hub_Config.json") end)
+        if not ex then lb.Text="Sin config"; lb.BackgroundColor3=Color3.fromRGB(200,40,40); task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200); return end
+        local raw; pcall(function() raw=readfile("RADICAL_Hub_Config.json") end)
+        if not raw or raw=="" then lb.Text="Error"; lb.BackgroundColor3=Color3.fromRGB(200,40,40); task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200); return end
         local ok,d=pcall(function() return HttpService:JSONDecode(raw) end)
         if not ok or not d then lb.Text="JSON corrupto"; lb.BackgroundColor3=Color3.fromRGB(200,40,40); task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200); return end
         if d.SilentAimTargetPlayers~=nil then _G_SilentAimTargetPlayers=d.SilentAimTargetPlayers; SilentAimPlayersEnabled=d.SilentAimTargetPlayers end
@@ -1378,8 +1298,7 @@ if settingPage then
         if d.FF~=nil then FastFlag.Enabled=d.FF end
         for _,fn in ipairs(toggleRefreshList) do pcall(fn) end
         lb.Text="Cargado!"; lb.BackgroundColor3=Color3.fromRGB(0,150,60)
-        task.wait(1.5)
-        lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200)
+        task.wait(1.5); lb.Text="Cargar Config"; lb.BackgroundColor3=Color3.fromRGB(80,80,200)
     end)
     local rb=Instance.new("TextButton",ss)
     rb.Size=UDim2.new(1,-8,0,32); rb.Position=UDim2.new(0,4,0,194); rb.BackgroundColor3=Color3.fromRGB(180,40,40); rb.Text="Reset Config"; rb.TextColor3=Color3.fromRGB(255,255,255); rb.Font=Enum.Font.GothamBold; rb.TextSize=10; rb.BorderSizePixel=0; rb.ZIndex=3
@@ -1394,15 +1313,11 @@ if settingPage then
         SoruInfinitoEnabled=false; SoruAimbotEnabled=false; PortalSoruEnabled=false
         SelectedSoruTarget="Nearest"; soruMaxDist=1000
         CamLock.PlayerEnabled=false; CamLock.NpcEnabled=false; CamLock.TargetPlayer="Nearest"; CamLock.Smoothness=0.4
-        ESP.Enabled=false
-        FastFlag.Enabled=false
-        pcall(disableESP)
-        pcall(removeFakeKorblox)
-        pcall(removeFakeHeadless)
+        ESP.Enabled=false; FastFlag.Enabled=false
+        pcall(disableESP); pcall(removeFakeKorblox); pcall(removeFakeHeadless)
         for _,fn in ipairs(toggleRefreshList) do pcall(fn) end
         rb.Text="Reseteado!"; rb.BackgroundColor3=Color3.fromRGB(0,150,60)
-        task.wait(1.5)
-        rb.Text="Reset Config"; rb.BackgroundColor3=Color3.fromRGB(180,40,40)
+        task.wait(1.5); rb.Text="Reset Config"; rb.BackgroundColor3=Color3.fromRGB(180,40,40)
     end)
 end
 print("RADICAL HUB: Cargado completo.")
